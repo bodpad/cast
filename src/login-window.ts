@@ -23,11 +23,20 @@ export interface LoginWindowOptions {
   onReady?: (window: LoginWindow) => void | Promise<void>;
 }
 
+export interface Landing {
+  host: string;
+  /** Origin and path of the last page shown on that host; query and fragment are dropped (they may carry tokens). */
+  url: string;
+  title: string;
+}
+
 export interface LoginResult {
   /** Hosts (with port) where the person landed while the window was open, in first-visit order. */
   sites: string[];
   /** Sign-in pages and redirect-only hops visited meanwhile. */
   signIn: string[];
+  /** For each of `sites`: the page the person ended up on. It often tells the person's role (/vendor, /admin). */
+  landings: Landing[];
   timedOut: boolean;
 }
 
@@ -75,6 +84,12 @@ export async function openLoginWindow(dir: string, opts: LoginWindowOptions): Pr
   }
 }
 
+/** "https://app.example.com/vendor?code=…#x" → "https://app.example.com/vendor" */
+export function pageUrl(url: string): string {
+  const u = new URL(url);
+  return u.origin + u.pathname;
+}
+
 /** "https://Outlook.office.com/mail" → "outlook.office.com"; ports are kept (localhost:3000 matters). */
 export function httpHost(url: string): string | undefined {
   try {
@@ -96,25 +111,26 @@ export function normalizeSite(site: string): string | undefined {
 const CHAIN_END = 0x20000000;
 
 /** Hosts of pages visited since `sinceUs`, from the profile's History database (Chrome flushes it on exit). */
-async function visitedHosts(dir: string, sinceUs: number): Promise<{ sites: string[]; signIn: string[] }> {
+async function visitedHosts(dir: string, sinceUs: number): Promise<Omit<LoginResult, 'timedOut'>> {
   const file = join(dir, 'Default', 'History');
-  if (!existsSync(file)) return { sites: [], signIn: [] };
+  if (!existsSync(file)) return { sites: [], signIn: [], landings: [] };
   const SQL = await initSqlJs();
   const db = new SQL.Database(readFileSync(file));
   try {
     const rows = db.exec(
-      'SELECT u.url, v.transition FROM visits v JOIN urls u ON u.id = v.url WHERE v.visit_time >= ? ORDER BY v.visit_time',
+      'SELECT u.url, u.title, v.transition FROM visits v JOIN urls u ON u.id = v.url WHERE v.visit_time >= ? ORDER BY v.visit_time',
       [sinceUs],
     );
     const hosts = new Set<string>();
-    const landed = new Set<string>();
-    for (const [url, transition] of rows[0]?.values ?? []) {
+    const last = new Map<string, Landing>();
+    for (const [url, title, transition] of rows[0]?.values ?? []) {
       const host = httpHost(String(url));
       if (!host) continue;
       hosts.add(host);
-      if (Number(transition) & CHAIN_END) landed.add(host);
+      if (Number(transition) & CHAIN_END) last.set(host, { host, url: pageUrl(String(url)), title: String(title ?? '') });
     }
-    return classifyHosts([...hosts], landed);
+    const { sites, signIn } = classifyHosts([...hosts], new Set(last.keys()));
+    return { sites, signIn, landings: sites.map(h => last.get(h)!) };
   } finally {
     db.close();
   }

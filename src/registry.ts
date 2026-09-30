@@ -124,6 +124,24 @@ export function updateProfile(paths: CastPaths, name: string, patch: Partial<Per
   return findProfile(paths, name)!;
 }
 
+/**
+ * Sets the email and description the user gave; an empty string clears the field. For a project
+ * profile the description is kept in the developer's local list; the team slot is not changed.
+ */
+export function editProfile(paths: CastPaths, name: string, fields: ProfileInput): Profile {
+  const p = requireReady(paths, name);
+  const scope: Scope = p.scope === 'user' ? 'user' : 'local';
+  updatePersonal(paths, scope, f => {
+    const e = f.profiles[findKey(f.profiles, p.name)!];
+    for (const k of ['email', 'description'] as const) {
+      const v = fields[k]?.trim();
+      if (v) e[k] = v;
+      else if (v !== undefined) delete e[k];
+    }
+  });
+  return findProfile(paths, name)!;
+}
+
 /** Forgets this developer's login. A project slot itself stays in .claude/cast.yaml for the team. */
 export function removeProfile(paths: CastPaths, name: string): Profile {
   const p = findProfile(paths, name);

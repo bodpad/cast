@@ -35,8 +35,9 @@ async function humanLogin(name: string, user: string) {
   return openLoginWindow(p.dir, {
     name,
     // Like SSO: pass through a sign-in host (localhost) that redirects back to the app (127.0.0.1).
-    onReady: w => visitAndClose(w, p.dir, `${ssoHost()}/hop?to=${encodeURIComponent(`${site.url}/login?user=${user}`)}`,
-      () => site.hits.slice(from).includes('/')),
+    // The app sends the person to a role page, with a token-like query cast must drop.
+    onReady: w => visitAndClose(w, p.dir, `${ssoHost()}/hop?to=${encodeURIComponent(`${site.url}/login?user=${user}&to=/${user}/home?code=secret`)}`,
+      () => site.hits.slice(from).some(h => h.startsWith(`/${user}/home`))),
   });
 }
 
@@ -87,6 +88,7 @@ describe('login window', () => {
     assert.equal(result.timedOut, false);
     assert.deepEqual(result.sites, [new URL(site.url).host]);
     assert.deepEqual(result.signIn, [new URL(ssoHost()).host]);
+    assert.deepEqual(result.landings, [{ host: new URL(site.url).host, url: `${site.url}/sam/home`, title: 'App' }]);
     assert.equal(statSync(findProfile(sb.paths, 'Sam')!.dir).mode & 0o777, 0o700);
   });
 
@@ -213,7 +215,7 @@ describe('cast MCP server', () => {
   test('lists cast and proxied tools', async () => {
     const { tools } = await client.listTools();
     const names = tools.map(t => t.name);
-    for (const n of ['cast_list', 'cast_open', 'cast_close', 'cast_add', 'cast_login', 'cast_set_sites', 'cast_remove', 'browser_click']) {
+    for (const n of ['cast_list', 'cast_open', 'cast_close', 'cast_add', 'cast_login', 'cast_set_sites', 'cast_update', 'cast_remove', 'browser_click']) {
       assert.ok(names.includes(n), n);
     }
   });
@@ -237,6 +239,17 @@ describe('cast MCP server', () => {
 
     const closed = await client.callTool({ name: 'cast_close', arguments: { profile: 'Elon' } });
     assert.match(text(closed), /Closed/);
+  });
+
+  test('cast_update changes email and description without a login', async () => {
+    const updated = await client.callTool({ name: 'cast_update', arguments: { name: 'elon', description: 'vendor', email: 'e@x.com' } });
+    assert.ok(!updated.isError, text(updated));
+    assert.equal(findProfile(sb.paths, 'Elon')!.description, 'vendor');
+    await client.callTool({ name: 'cast_update', arguments: { name: 'Elon', email: '' } });
+    assert.equal(findProfile(sb.paths, 'Elon')!.email, undefined);
+    assert.equal(findProfile(sb.paths, 'Elon')!.description, 'vendor');
+    const empty = await client.callTool({ name: 'cast_update', arguments: { name: 'Elon' } });
+    assert.equal(empty.isError, true);
   });
 
   test('errors are reported as tool errors', async () => {

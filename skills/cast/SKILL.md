@@ -7,7 +7,10 @@ description: Use when a task needs a real browser logged in as a specific person
 cast gives you several visible Chrome windows, one per person, each already logged in to that person's accounts (the app, SSO, email…). The session start message and `cast_list` show the available profiles: name, email, description (role) and known sites.
 
 ## Choosing and opening profiles
-- Pick profiles by name or by description ("the sender", "admin"). If unsure, call `cast_list`.
+- Pick a profile by the name the user says ("Sam") or by its description, which says who the person is in tests ("the sender", "vendor", "PM"). If unsure, call `cast_list`.
+- Do not guess a role from a profile name, email or sites: `ali-insygna-ia` does not tell you whether this is a vendor or an admin.
+- If the task names a role or a person and no profile's description matches, or several do, ask the user once which profile it is. Then save their answer in that profile's description with `cast_update`, so nobody has to ask again. Save only what the user said, never your guess.
+- To change a profile's email or description later, the user can run `/cast:edit <name>`.
 - Open profiles without asking: `cast_open {profile, url?}`, or just call any `browser_*` tool with `profile` — the profile opens automatically.
 - Every `browser_*` tool takes a required `profile`. Calls for different profiles go to different browsers and can be interleaved freely.
 - Each window is the person's regular Chrome: it reopens the tabs from last time. Check `browser_tabs {profile, action: "list"}` and select or open the tab you need instead of assuming a blank page.

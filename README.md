@@ -17,19 +17,35 @@ Works with corporate SSO (Microsoft Entra, Okta, Google), because you log in you
 
 Needs Linux with a desktop, Google Chrome and Node.js 20+.
 
+Start Claude Code (`claude`) and type these at its prompt. They are Claude Code commands, not shell commands:
+
 ```
 /plugin marketplace add bodpad/cast
 /plugin install cast@bodpad
 /reload-plugins
 ```
 
-To update: `/plugin marketplace update bodpad`, then `/plugin update cast@bodpad`.
+From a terminal instead: `claude plugin marketplace add bodpad/cast`, then `claude plugin install cast@bodpad`, then start `claude`.
+
+## Update
+
+In a Claude Code session, fetch the latest marketplace listing, update the plugin and reload it:
+
+```
+/plugin marketplace update bodpad
+/plugin update cast@bodpad
+/reload-plugins
+```
+
+From a terminal instead: `claude plugin marketplace update bodpad`, then `claude plugin update cast@bodpad`, then restart `claude`.
+
+Profiles and logins are kept. What changed in each version: [CHANGELOG.md](CHANGELOG.md).
 
 ## Get started
 
-1. `/cast:add Sam sam@example.com "sends messages"` — email and description are optional; they help Claude pick the right person.
+1. `/cast:add Sam sam@example.com "sends messages"` — the description says who this person is in your tests; Claude picks profiles by it. Skip it and cast suggests one after login from the page you landed on (e.g. `/vendor`).
 2. A Chrome window opens. Log in everywhere Sam needs (your app, SSO, email), choose **"Stay signed in"** on MFA, then **close the window**.
-3. Confirm the sites cast suggests (where you landed, e.g. `localhost:3000`; sign-in pages are left out).
+3. Confirm the sites cast suggests (where you landed, e.g. `localhost:3000`; sign-in pages are left out) and the description, if you skipped it.
 
 Now every Claude Code session in this project knows Sam. Just ask:
 
@@ -42,6 +58,7 @@ Now every Claude Code session in this project knows Sam. Just ask:
 |---|---|
 | `/cast:add <name> [email] ["description"] [--scope …]` | Add a person and log in |
 | `/cast:login <name>` | Log in again, or add sites |
+| `/cast:edit <name> [email] ["description"]` | Change the email or description, no new login |
 | `/cast:list` | Show profiles |
 | `/cast:remove <name>` | Delete a profile and its logins |
 
@@ -51,6 +68,7 @@ Names: latin letters, digits, `-`, `_`.
 
 - **Windows are regular, visible Chrome.** Watch, take over or close them; Claude reopens a window when needed.
 - **Logins and tabs are kept** between sessions.
+- **Claude picks people by description.** It never guesses a role from a profile name. If no profile or several fit ("the vendor"), it asks you once and saves your answer. Change a description any time with `/cast:edit <name>`.
 - **Claude never logs in.** When a session expires, it asks you to run `/cast:login <name>`.
 - **Claude sees what the person sees, email included.** Prefer test accounts. cast never stores passwords or shows cookies. Details: [SECURITY.md](SECURITY.md).
 

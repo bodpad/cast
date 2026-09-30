@@ -27,7 +27,8 @@ Status: Linux only. Installed as `/plugin marketplace add bodpad/cast`, `/plugin
 
 - Everything in the repository is in English.
 - After changing `src/`, rebuild and commit `dist/src` in the same commit: users run `dist/` without a build step.
-- Releasing: bump the version in `package.json` and `.claude-plugin/plugin.json`, add a `CHANGELOG.md` entry. Users get updates only when the version changes.
+- All changes go through a pull request: branch from `main`, push the branch, open a PR. Never push to `main` directly.
+- Releasing: bump the version in `package.json` and `.claude-plugin/plugin.json`, add a `CHANGELOG.md` entry. Users get updates only when the version changes and the PR is merged to `main`.
 - Never make cast type passwords, log in by itself, or print cookies or tokens.
 
 ## Easy to break
