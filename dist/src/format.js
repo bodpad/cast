@@ -1,7 +1,7 @@
-/** Compact block for the SessionStart hook; empty when there are no profiles. */
+/** Compact block for the SessionStart hook; a hint on how to add people when there are none. */
 export function briefList(profiles) {
     if (!profiles.length)
-        return '';
+        return 'cast: no browser users yet. When a task needs a logged-in browser, ask the user to add each person with /cast:add <name>.';
     const lines = profiles.map(p => {
         if (!p.ready) {
             const desc = p.description ? ` — ${p.description}.` : '';

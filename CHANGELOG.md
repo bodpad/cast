@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.3 — 2026-09-30
+
+### Changed
+- With no profiles yet, the session start tells Claude how people are added, so it suggests `/cast:add <name>` from its first answer.
+
 ## 0.6.2 — 2026-09-30
 
 ### Fixed
