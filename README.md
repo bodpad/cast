@@ -2,6 +2,8 @@
 
 **Several logged-in browser users for [Claude Code](https://claude.com/claude-code).**
 
+![cast demo: Claude drives two logged-in browsers and finds a bug](docs/demo.gif)
+
 To test an app where people interact (a chat, a marketplace, an approval flow), you need a browser per person, each logged in as that person. cast gives Claude one Chrome profile per person. You log in once; Claude opens the browsers itself, several at a time.
 
 ```

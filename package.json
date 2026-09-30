@@ -10,7 +10,8 @@
   },
   "scripts": {
     "build": "tsc -p .",
-    "test": "npm run build && node --test --test-concurrency=1 dist/test/"
+    "test": "npm run build && node --test --test-concurrency=1 dist/test/",
+    "demo": "node docs/demo/render.mjs"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "1.31.0",

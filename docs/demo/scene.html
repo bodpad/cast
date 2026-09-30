@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>cast demo</title>
+<style>
+  :root {
+    --mono: "JetBrains Mono", "DejaVu Sans Mono", "Liberation Mono", monospace;
+    --sans: Inter, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --claude: #d97757;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body { background: #0a0b0f; color: #e5e7eb; font-family: var(--sans); overflow: hidden; }
+  body.review { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
+
+  #wrap { position: relative; }
+  #stage {
+    position: absolute; left: 0; top: 0; width: 1200px; height: 675px; overflow: hidden;
+    transform-origin: 0 0;
+    background: radial-gradient(1200px 700px at 70% 20%, #1a1f2b 0%, #0e1117 60%, #0a0c10 100%);
+  }
+  .abs { position: absolute; }
+
+  /* Terminal */
+  #term {
+    top: 20px; height: 635px; border-radius: 10px;
+    background: #15171c; border: 1px solid #2a2d35; overflow: hidden;
+    box-shadow: 0 20px 50px rgba(0,0,0,.45); transform-origin: 30% 50%;
+  }
+  #term .bar {
+    height: 30px; background: #1f2128; border-bottom: 1px solid #2a2d35;
+    display: flex; align-items: center; justify-content: center;
+    font: 12px var(--sans); color: #9ca3af; position: relative;
+  }
+  #term .bar .dots { position: absolute; left: 12px; display: flex; gap: 7px; }
+  #term .bar .dots i { width: 11px; height: 11px; border-radius: 50%; background: #3b3e47; display: block; }
+  #tbody {
+    padding: 14px 16px; font: 13px/19px var(--mono); color: #e5e7eb; white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .ln { position: relative; }
+  .dim { color: #7c818c; }
+  .hook { color: #8a8f99; }
+  .hook b { color: #c9ccd3; font-weight: 600; }
+  .prompt { background: #23262e; border-radius: 4px; padding: 3px 8px 3px 22px; margin: 10px 0 8px; }
+  .prompt .pp { position: absolute; left: 8px; color: #9ca3af; }
+  .tool { padding-left: 18px; margin-top: 6px; }
+  .tool .dot { position: absolute; left: 0; color: #4ade80; }
+  .tool b { font-weight: 700; color: #f3f4f6; }
+  .tool .args { color: #9ca3af; }
+  .res { padding-left: 40px; color: #9ca3af; }
+  .res .el { position: absolute; left: 18px; color: #6b7280; }
+  .res.ok { color: #86efac; }
+  .say { padding-left: 18px; margin-top: 8px; }
+  .say .dot { position: absolute; left: 0; color: #e5e7eb; }
+  .bug { color: #fca5a5; }
+  .bug b { color: #f87171; }
+  .spin { margin-top: 10px; color: var(--claude); }
+  .caret { background: #e5e7eb; color: #15171c; }
+
+  /* Chrome window, macOS style: traffic lights and the tab on one bar */
+  .win {
+    border-radius: 10px; overflow: hidden; background: #fff;
+    box-shadow: 0 22px 55px rgba(0,0,0,.5), 0 0 0 1px rgba(255,255,255,.06);
+    transform-origin: 50% 50%;
+  }
+  .win .top { height: 38px; background: var(--c1); display: flex; align-items: flex-end; padding: 0 12px; gap: 14px; }
+  .win .lights { display: flex; gap: 7px; align-self: center; }
+  .win .lights i { width: 11px; height: 11px; border-radius: 50%; display: block; background: rgba(255,255,255,.28); }
+  .win .tab {
+    height: 29px; padding: 0 14px; border-radius: 8px 8px 0 0; background: var(--c2);
+    font: 12px/29px var(--sans); color: #fff; display: flex; align-items: center; gap: 7px; min-width: 150px;
+  }
+  .win .tab .fav { width: 10px; height: 10px; border-radius: 3px; background: #ea580c; flex: none; }
+  .win .person { margin-left: auto; align-self: center; font: 600 12.5px var(--sans); color: rgba(255,255,255,.92); }
+  .win .person span { font-weight: 400; color: rgba(255,255,255,.6); }
+  .win .urlrow { height: 32px; background: var(--c2); display: flex; align-items: center; padding: 0 12px 4px; }
+  .win .url {
+    flex: 1; height: 24px; border-radius: 12px; background: rgba(0,0,0,.25); color: rgba(255,255,255,.85);
+    font: 12px/24px var(--sans); padding: 0 12px;
+  }
+  .win .page { position: relative; overflow: hidden; background: #f8fafc; color: #0f172a; }
+
+  .sam  { --c1: #0f5e57; --c2: #15786f; }
+  .elon { --c1: #4c1d95; --c2: #6131b9; }
+  .plain { --c1: #2b2d31; --c2: #3c3e43; }
+
+  /* The app under test */
+  .app-h {
+    position: absolute; left: 0; top: 0; right: 0; height: 44px; background: #fff; border-bottom: 1px solid #e8edf3;
+    display: flex; align-items: center; padding: 0 18px; gap: 10px;
+  }
+  .logo { font: 800 15px var(--sans); color: #0f172a; letter-spacing: -.2px; }
+  .logo i { font-style: normal; color: #ea580c; }
+  .app-h .sp { flex: 1; }
+  .ava { width: 26px; height: 26px; border-radius: 50%; color: #fff; font: 700 12px/26px var(--sans); text-align: center; }
+  .who { font: 600 13px var(--sans); color: #334155; }
+  .lbl { position: absolute; font: 700 11px var(--sans); color: #94a3b8; text-transform: uppercase; letter-spacing: .7px; }
+  .inp {
+    position: absolute; height: 34px; border: 1px solid #d5dde7; border-radius: 7px; background: #fff;
+    font: 13.5px/32px var(--sans); padding: 0 11px; color: #0f172a; white-space: nowrap; overflow: hidden;
+  }
+  .inp.ph { color: #a3afbf; }
+  .inp.focus { border-color: #ea580c; box-shadow: 0 0 0 3px rgba(234,88,12,.14); }
+  .btn {
+    position: absolute; border-radius: 7px; background: #ea580c; color: #fff; font: 700 13px var(--sans);
+    display: flex; align-items: center; justify-content: center; transform-origin: 50% 50%;
+  }
+  .row {
+    position: absolute; left: 18px; width: 534px; height: 50px; background: #fff; border: 1px solid #e8edf3;
+    border-radius: 9px; display: flex; align-items: center; padding: 0 14px; gap: 12px; font: 13.5px var(--sans);
+  }
+  .row .th { width: 42px; height: 32px; border-radius: 6px; flex: none; display: flex; align-items: center; justify-content: center; }
+  .row .nm { font-weight: 600; flex: 1; }
+  .row .pr { color: #475569; font-weight: 600; }
+  .badge { font: 700 11px var(--sans); padding: 4px 10px; border-radius: 999px; position: relative; }
+  .badge.av { background: #dcfce7; color: #166534; }
+  .badge.sold { background: #eef2f6; color: #64748b; }
+  .ring { position: absolute; inset: -5px; border: 2px solid #ef4444; border-radius: 999px; pointer-events: none; }
+  .note {
+    position: absolute; left: 18px; width: 534px; height: 46px; border-radius: 9px; background: #fff;
+    border: 1px solid #e8edf3; display: flex; align-items: center; padding: 0 14px;
+    font: 13.5px var(--sans); color: #94a3b8;
+  }
+  .card {
+    position: absolute; width: 260px; height: 200px; background: #fff; border: 1px solid #e8edf3;
+    border-radius: 11px; overflow: hidden; font: 13.5px var(--sans);
+  }
+  .card .im { height: 104px; display: flex; align-items: center; justify-content: center; }
+  .card .nm { position: absolute; left: 14px; top: 116px; font-weight: 600; }
+  .card .pr { position: absolute; left: 14px; top: 136px; color: #475569; font-weight: 600; }
+  .card .btn { left: 14px; top: 160px; width: 96px; height: 28px; }
+  .card .btn.done { background: #16a34a; }
+
+  /* Login page */
+  .lg-t { position: absolute; left: 0; right: 0; top: 40px; text-align: center; font: 800 19px var(--sans); }
+
+  /* Cursor, click ring, chips, Claude status */
+  .cur { position: absolute; width: 18px; height: 22px; left: 0; top: 0; z-index: 20; pointer-events: none; }
+  .click { position: absolute; width: 28px; height: 28px; margin: -14px 0 0 -14px; border-radius: 50%; border: 2px solid var(--claude); z-index: 19; }
+  .scan {
+    position: absolute; left: 0; right: 0; height: 90px; z-index: 18;
+    background: linear-gradient(180deg, rgba(217,119,87,0) 0%, rgba(217,119,87,.16) 70%, rgba(217,119,87,.6) 100%);
+  }
+  .chip {
+    position: absolute; padding: 7px 14px; border-radius: 999px; font: 600 13.5px var(--sans);
+    background: rgba(255,255,255,.1); color: #f3f4f6; border: 1px solid rgba(255,255,255,.14); white-space: nowrap;
+  }
+  .center { left: 0; width: 1200px; display: flex; justify-content: center; z-index: 40; }
+  #pill {
+    height: 38px; padding: 0 18px; border-radius: 999px; background: #1b1d23; border: 1px solid #343842;
+    display: flex; align-items: center; gap: 10px; font: 14px var(--sans); color: #e5e7eb;
+    box-shadow: 0 10px 30px rgba(0,0,0,.4); white-space: nowrap;
+  }
+  #pill .g { color: var(--claude); font: 16px var(--mono); width: 14px; text-align: center; }
+  #pill b { color: #fff; }
+  #fade { left: 0; top: 0; width: 1200px; height: 675px; background: #000; z-index: 60; pointer-events: none; }
+
+  /* Review controls */
+  #ctl { display: flex; align-items: center; gap: 12px; font: 13px var(--sans); color: #cbd5e1; user-select: none; }
+  #ctl button {
+    background: #1f2937; color: #e5e7eb; border: 1px solid #374151; border-radius: 6px; padding: 5px 10px;
+    font: 13px var(--sans); cursor: pointer;
+  }
+  #ctl button.on { background: #374151; border-color: #6b7280; }
+  #ctl input[type=range] { width: 420px; }
+  #time { font-family: var(--mono); min-width: 96px; }
+  body.render #ctl { display: none; }
+</style>
+</head>
+<body>
+<div id="wrap"><div id="stage"></div></div>
+<div id="ctl">
+  <button id="play" title="Space">Pause</button>
+  <input id="seek" type="range" min="0" step="10">
+  <span id="time"></span>
+  <span>
+    <button data-speed="0.5">0.5×</button><button data-speed="1" class="on">1×</button><button data-speed="2">2×</button>
+  </span>
+  <label><input id="loop" type="checkbox" checked> loop</label>
+  <span class="dim">Space: play/pause · ←/→: ±0.5 s</span>
+</div>
+
+<script>
+// ---------- helpers ----------
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const prog = (t, s, e) => clamp((t - s) / (e - s));
+const ease = x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2;
+const lerp = (a, b, p) => a + (b - a) * p;
+const typed = (text, t, s, cps) => text.slice(0, Math.max(0, Math.floor((t - s) * cps)));
+const typingDone = (text, s, cps) => s + text.length / cps;
+const esc = s => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+const blink = t => Math.floor(t * 2.4) % 2 === 0;
+const $ = id => document.getElementById(id);
+
+// Cursor keyframes: [{t, x, y}], eased between neighbours.
+function along(kf, t) {
+  if (t <= kf[0].t) return kf[0];
+  for (let i = 1; i < kf.length; i++) {
+    if (t <= kf[i].t) {
+      const p = ease(prog(t, kf[i - 1].t, kf[i].t));
+      return { x: lerp(kf[i - 1].x, kf[i].x, p), y: lerp(kf[i - 1].y, kf[i].y, p) };
+    }
+  }
+  return kf[kf.length - 1];
+}
+const pressScale = (t, at) => (t >= at && t < at + .16) ? .93 : 1;
+const SPIN_GLYPHS = ['·', '✢', '✳', '✶', '✻', '✽', '✻', '✶', '✳', '✢'];
+const spinner = t => SPIN_GLYPHS[Math.floor(t * 7) % SPIN_GLYPHS.length];
+
+// ---------- rhythm ----------
+// One vocabulary of durations, so every part of the scene moves at the same pace.
+const FADE = .6;      // windows and the terminal appear or leave
+const MOVE = .5;      // the cursor travels to a target
+const BEAT = .7;      // pause after a result, before the next action
+const CPS_HUMAN = 16; // a person typing
+const CPS_CLAUDE = 12;
+const CPS_PROMPT = 32;
+const CPS_REPLY = 45;
+
+// ---------- timeline (seconds) ----------
+const SITE = 'localhost:3000';
+// Each person is added with a short description, so Claude can pick the right one for a task.
+const PEOPLE = [
+  { id: 'sam', name: 'Sam', email: 'sam@example.com', color: '#0f766e', desc: 'seller, lists items for sale' },
+  { id: 'elon', name: 'Elon', email: 'elon@example.com', color: '#6d28d9', desc: 'buyer, buys listed items' },
+];
+const TERM = [{ at: 0, k: 'hook', html: '<b>cast</b> · no profiles yet' }];
+const LOGINS = [];
+let cursor = .5;
+for (const P of PEOPLE) {
+  const cmd = `/cast:add ${P.id} "${P.desc}"`;
+  const tool = typingDone(cmd, cursor, CPS_PROMPT) + .4;
+  const L = { ...P, in: tool + .5 };
+  L.email_at = L.in + FADE + .4;
+  L.emailEnd = typingDone(L.email, L.email_at, CPS_HUMAN);
+  L.pass_at = L.emailEnd + MOVE;
+  L.click = L.pass_at + 10 / 20 + .35;
+  L.out = L.click + .15 + BEAT + .3;
+  const saved = L.out + FADE + .1;
+  TERM.push(
+    { at: cursor, k: 'prompt', text: cmd, cps: CPS_PROMPT },
+    { at: tool, k: 'tool', name: 'cast_add', args: `("${P.id}", "${P.desc}")` },
+    { at: tool + .2, k: 'res', text: `Chrome is open. Log in as ${P.name}, then close the window.` },
+    { at: saved, k: 'res', text: `Saved ${P.id} · ${SITE}`, cls: 'ok' },
+  );
+  LOGINS.push(L);
+  cursor = saved + BEAT;
+}
+const TASK_AT = cursor + .2;
+const TASK = 'Sam lists a bike for $120. Elon buys it. Check that both sides see the sale.';
+TERM.push({ at: TASK_AT, k: 'prompt', text: TASK, cps: CPS_PROMPT });
+const TASK_END = typingDone(TASK, TASK_AT, CPS_PROMPT);
+const TERM_SPIN = TASK_END + .3;
+const TERM_OUT = TASK_END + 1.0;           // the terminal leaves, the browsers take the stage
+const WIN_IN = TERM_OUT + .3;
+const WORK = WIN_IN + FADE + BEAT + .6;    // Claude starts driving
+
+// Sam lists the bike.
+const S = {};
+S.curIn = WORK;
+S.title = S.curIn + MOVE + .15;
+S.titleEnd = typingDone('Road bike', S.title, CPS_CLAUDE);
+S.price = S.titleEnd + MOVE + .1;
+S.priceEnd = typingDone('120', S.price, CPS_CLAUDE * .7);
+S.click = S.priceEnd + MOVE + .3;
+S.listed = S.click + .15;
+S.curOut = S.listed + FADE + .3;
+// Elon buys it.
+const E = {};
+E.feed = S.listed + FADE + BEAT;
+E.curIn = E.feed + FADE + .3;
+E.click = E.curIn + MOVE + .3;
+E.bought = E.click + .15;
+E.curOut = E.bought + BEAT + .3;
+// Claude checks Sam's side.
+const C = {};
+C.scan = E.bought + BEAT + 1.0;
+C.scanEnd = C.scan + 1.0;
+C.ring = C.scanEnd + .2;
+C.noteRing = C.ring + .4;
+// Back to the terminal.
+const BACK = C.noteRing + 1.6;
+const BUG_AT = BACK + FADE + .6;
+const BUG_TEXT = 'Elon bought “Road bike”, but Sam still sees it as Available and got no sale notification.';
+const FIX_AT = typingDone(BUG_TEXT, BUG_AT, CPS_REPLY) + BEAT;
+const READ_AT = FIX_AT + 1.0;
+const END = READ_AT + 3.2;
+const DURATION = Math.round(END * 1000);
+window.DURATION = DURATION;
+
+const STEPS = [
+  { at: WIN_IN + FADE, text: '<b>Sam</b> and <b>Elon</b> are already logged in' },
+  { at: S.curIn, text: '<b>Sam</b> lists the bike' },
+  { at: E.feed, text: '<b>Elon</b> buys it' },
+  { at: E.bought + BEAT, text: 'Checking <b>Sam</b>’s side…' },
+];
+
+const TERM_BACK = [
+  { k: 'tool', name: 'cast_open', args: '(profile: "sam")' },
+  { k: 'tool', name: 'cast_open', args: '(profile: "elon")' },
+  { k: 'tool', name: 'browser_click', args: '(profile: "sam", "Publish")' },
+  { k: 'res', text: 'Listed: Road bike · $120 · Available' },
+  { k: 'tool', name: 'browser_click', args: '(profile: "elon", "Buy · Road bike")' },
+  { k: 'res', text: 'Elon: Purchased ✓', cls: 'ok' },
+  { k: 'tool', name: 'browser_snapshot', args: '(profile: "sam")' },
+  { k: 'res', text: 'Road bike · $120 · Available · 0 notifications' },
+  { k: 'say', at: BUG_AT, cls: 'bug', dot: '✗', html: '<b>Found a bug:</b> ', text: BUG_TEXT, cps: CPS_REPLY },
+  { k: 'say', at: FIX_AT, html: '', text: 'Fixing it now.', cps: 30 },
+  { k: 'tool', at: READ_AT, name: 'Read', args: '(src/orders/purchase.ts)' },
+].map(e => ({ at: BACK, ...e }));
+
+// ---------- icons ----------
+const ICON = {
+  bike: '<svg width="46" height="30" viewBox="0 0 46 30" fill="none" stroke="#0f172a" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="20" r="8"/><circle cx="36" cy="20" r="8"/><path d="M10 20 L18 7 L30 7 L36 20 M18 7 L24 20 L30 7 M15 4 H21 M28 4 H33"/></svg>',
+  guitar: '<svg width="46" height="34" viewBox="0 0 46 34" fill="none" stroke="#0f172a" stroke-width="2.2" stroke-linecap="round"><ellipse cx="14" cy="21" rx="9" ry="8"/><circle cx="14" cy="21" r="2.5"/><path d="M20 16 L40 4"/></svg>',
+  camera: '<svg width="44" height="32" viewBox="0 0 44 32" fill="none" stroke="#0f172a" stroke-width="2.2" stroke-linejoin="round"><rect x="4" y="8" width="36" height="21" rx="4"/><circle cx="22" cy="18.5" r="6.5"/><path d="M15 8 L18 3 H26 L29 8"/></svg>',
+  lamp: '<svg width="30" height="26" viewBox="0 0 30 26" fill="none" stroke="#0f172a" stroke-width="2" stroke-linejoin="round"><path d="M8 3 H22 L26 12 H4 Z M15 12 V22 M9 23 H21"/></svg>',
+  cursor: '<svg width="18" height="22" viewBox="0 0 18 22"><path d="M1.5 1.5 L1.5 17.5 L5.6 13.7 L8.4 20.2 L11.3 19 L8.6 12.6 L14.3 12.6 Z" fill="#fff" stroke="#111" stroke-width="1.4" stroke-linejoin="round"/></svg>',
+};
+const small = (svg, w, h) => svg.replace(/width="\d+" height="\d+"/, `width="${w}" height="${h}"`);
+const LOGO = '<span class="logo">My<i>Shop</i></span>';
+
+// ---------- scene skeleton (built once) ----------
+const BAR_H = 70;
+function chromeWindow(id, cls, x, y, w, h, tab, url, person = '') {
+  return `<div id="${id}" class="abs win ${cls}" style="left:${x}px;top:${y}px;width:${w}px;height:${h}px">
+    <div class="top"><span class="lights"><i></i><i></i><i></i></span>
+      <div class="tab"><span class="fav"></span>${tab}</div>${person}</div>
+    <div class="urlrow"><div class="url">${url}</div></div>
+    <div class="page" id="${id}-page" style="height:${h - BAR_H}px"></div>
+  </div>`;
+}
+function appHeader(name, color) {
+  return `<div class="app-h">${LOGO}<span class="sp"></span>
+    <span class="ava" style="background:${color}">${name[0].toUpperCase()}</span>
+    <span class="who">${name[0].toUpperCase() + name.slice(1)}</span></div>`;
+}
+
+const WIN_Y = 20, WIN_H = 585, WIN_W = 570;
+const PAGE_H = WIN_H - BAR_H;
+
+function build() {
+  $('stage').innerHTML = `
+    <div id="term" class="abs">
+      <div class="bar"><span class="dots"><i></i><i></i><i></i></span><span>claude · ~/myshop</span></div>
+      <div id="tbody"></div>
+    </div>
+    <div id="chip-login" class="chip" style="left:660px;top:112px"></div>
+    ${chromeWindow('login', 'plain', 660, 160, 440, 340, 'Sign in · MyShop', `${SITE}/login`)}
+    ${chromeWindow('sam', 'sam', 20, WIN_Y, WIN_W, WIN_H, 'MyShop · Sell', `${SITE}/sell`, '<span class="person">Sam <span>· seller</span></span>')}
+    ${chromeWindow('elon', 'elon', 610, WIN_Y, WIN_W, WIN_H, 'MyShop', SITE, '<span class="person">Elon <span>· buyer</span></span>')}
+    <div id="pillbox" class="abs center" style="top:620px"><div id="pill"></div></div>
+    <div id="fade" class="abs"></div>`;
+
+  $('login-page').innerHTML = `
+    <div id="lg-form">
+      <div class="lg-t">Sign in to <span class="logo" style="font-size:19px">My<i>Shop</i></span></div>
+      <div id="lg-email" class="inp" style="left:70px;top:94px;width:300px"></div>
+      <div id="lg-pass" class="inp" style="left:70px;top:138px;width:300px"></div>
+      <div id="lg-btn" class="btn" style="left:70px;top:188px;width:300px;height:36px">Sign in</div>
+    </div>
+    <div id="lg-ok" style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px">
+      <span id="lg-ava" class="ava" style="width:48px;height:48px;line-height:48px;font-size:19px"></span>
+      <b id="lg-hi" style="font:700 18px var(--sans)"></b>
+    </div>
+    <div id="lg-cur" class="cur">${ICON.cursor}</div>`;
+
+  $('sam-page').innerHTML = `${appHeader('sam', '#0f766e')}
+    <div class="lbl" style="left:18px;top:66px">New listing</div>
+    <div id="s-title" class="inp" style="left:18px;top:86px;width:320px"></div>
+    <div id="s-price" class="inp" style="left:18px;top:130px;width:320px"></div>
+    <div id="s-pub" class="btn" style="left:18px;top:176px;width:120px;height:36px">Publish</div>
+    <div class="lbl" style="left:18px;top:246px">My listings</div>
+    <div id="s-bike" class="row"><span class="th" style="background:#ffedd5">${small(ICON.bike, 34, 22)}</span>
+      <span class="nm">Road bike</span><span class="pr">$120</span><span class="badge av">Available<span class="ring" id="s-ring"></span></span></div>
+    <div id="s-lamp" class="row"><span class="th" style="background:#fef9c3">${ICON.lamp}</span>
+      <span class="nm">Desk lamp</span><span class="pr">$25</span><span class="badge sold">Sold</span></div>
+    <div class="lbl" style="left:18px;top:410px">Notifications</div>
+    <div class="note" style="top:430px">No new notifications</div>
+    <div id="s-notering" class="abs" style="left:13px;top:425px;width:544px;height:56px;border:2px solid #ef4444;border-radius:12px"></div>
+    <div id="s-scan" class="scan"></div>
+    <div id="s-cur" class="cur">${ICON.cursor}</div>
+    <div id="s-click" class="click"></div>`;
+
+  const card = (id, name, price, bg, icon) => `<div id="${id}" class="card">
+    <div class="im" style="background:${bg}">${icon}</div>
+    <div class="nm">${name}</div><div class="pr">${price}</div>
+    <div class="btn" id="${id}-btn">Buy</div></div>`;
+  $('elon-page').innerHTML = `${appHeader('elon', '#6d28d9')}
+    <div class="lbl" style="left:18px;top:66px">New near you</div>
+    ${card('e-bike', 'Road bike', '$120', '#ffedd5', small(ICON.bike, 70, 46))}
+    ${card('e-guitar', 'Acoustic guitar', '$180', '#fee2e2', small(ICON.guitar, 66, 49))}
+    ${card('e-camera', 'Film camera', '$90', '#e0f2fe', small(ICON.camera, 62, 45))}
+    <div id="e-cur" class="cur">${ICON.cursor}</div>
+    <div id="e-click" class="click"></div>`;
+}
+
+// ---------- terminal ----------
+function termHtml(t) {
+  let out = '';
+  for (const e of t >= BACK ? TERM.concat(TERM_BACK) : TERM) {
+    if (e.k === 'prompt') {
+      if (t < e.at - .5) continue;
+      const shown = typed(e.text, t, e.at, e.cps);
+      const typing = t < typingDone(e.text, e.at, e.cps) + .2;
+      const caret = typing ? `<span class="${blink(t) || shown.length < e.text.length ? 'caret' : ''}"> </span>` : '';
+      out += `<div class="ln prompt"><span class="pp">&gt;</span>${esc(shown)}${caret}</div>`;
+      continue;
+    }
+    if (t < e.at) continue;
+    if (e.k === 'hook') out += `<div class="ln hook">${e.html}</div>`;
+    if (e.k === 'tool') out += `<div class="ln tool"><span class="dot">●</span><b>${e.name}</b><span class="args">${esc(e.args)}</span></div>`;
+    if (e.k === 'res') out += `<div class="ln res ${e.cls || ''}"><span class="el">⎿</span>${esc(e.text)}</div>`;
+    if (e.k === 'say') out += `<div class="ln say ${e.cls || ''}"><span class="dot">${e.dot || '●'}</span>${e.html}${esc(typed(e.text, t, e.at, e.cps))}</div>`;
+  }
+  if (t >= TERM_SPIN && t < TERM_OUT + FADE) out += `<div class="ln spin">${spinner(t)} Working…</div>`;
+  if (t >= FIX_AT + .5) out += `<div class="ln spin">${spinner(t)} Fixing… <span class="dim">(esc to interrupt)</span></div>`;
+  return out;
+}
+
+// ---------- render one frame ----------
+function show(el, o, scale = 1, dx = 0, dy = 0) {
+  el.style.opacity = o;
+  el.style.visibility = o <= 0.001 ? 'hidden' : 'visible';
+  el.style.transform = `translate(${dx}px, ${dy}px) scale(${scale})`;
+}
+function place(el, p) { el.style.left = p.x + 'px'; el.style.top = p.y + 'px'; }
+function field(el, value, placeholder, focus, t) {
+  el.classList.toggle('ph', !value);
+  el.classList.toggle('focus', !!focus);
+  el.innerHTML = (value ? esc(value) : placeholder) + (focus && blink(t) ? '<span style="border-left:1.5px solid #0f172a;margin-left:1px"></span>' : '');
+}
+function clickRing(el, p, t, at) {
+  const k = prog(t, at, at + .45);
+  const on = t >= at && k < 1;
+  el.style.visibility = on ? 'visible' : 'hidden';
+  if (on) { place(el, p); el.style.opacity = 1 - k; el.style.transform = `scale(${.6 + k * 1.1})`; }
+}
+function pulse(t, from) { return t < from ? 0 : ease(prog(t, from, from + .4)) * (.45 + .55 * (.5 + .5 * Math.cos((t - from) * Math.PI * 2 * .9))); }
+const fadeInOut = (t, a, b) => ease(prog(t, a, a + FADE)) * (1 - ease(prog(t, b, b + FADE)));
+
+function renderLogin(t) {
+  const L = t < LOGINS[1].in - .5 ? LOGINS[0] : LOGINS[1];
+  const inP = ease(prog(t, L.in, L.in + FADE)), outP = ease(prog(t, L.out, L.out + FADE));
+  const o = inP * (1 - outP);
+  show($('login'), o, .95 + .05 * inP - .03 * outP);
+  show($('chip-login'), o, 1, 0, 8 * (1 - inP));
+  $('chip-login').textContent = `👤 You log in as ${L.name} yourself, once`;
+  field($('lg-email'), typed(L.email, t, L.email_at, CPS_HUMAN), 'Email', t >= L.email_at - .15 && t < L.emailEnd + .15, t);
+  const dots = '•'.repeat(Math.min(10, Math.max(0, Math.floor((t - L.pass_at) * 20))));
+  field($('lg-pass'), dots, 'Password', t >= L.emailEnd + .15 && t < L.click, t);
+  $('lg-btn').style.transform = `scale(${pressScale(t, L.click)})`;
+  const signed = t >= L.click + .15;
+  $('lg-form').style.visibility = signed ? 'hidden' : 'visible';
+  $('lg-ok').style.visibility = signed ? 'visible' : 'hidden';
+  $('lg-ava').textContent = L.name[0];
+  $('lg-ava').style.background = L.color;
+  $('lg-hi').textContent = `Hi, ${L.name}`;
+  place($('lg-cur'), along([
+    { t: L.in + FADE, x: 330, y: 230 }, { t: L.email_at - .1, x: 200, y: 110 }, { t: L.emailEnd, x: 200, y: 110 },
+    { t: L.emailEnd + MOVE * .6, x: 200, y: 154 }, { t: L.click - MOVE * .7, x: 200, y: 154 }, { t: L.click - .05, x: 214, y: 205 },
+    { t: 999, x: 214, y: 205 },
+  ], t));
+}
+
+function renderAt(ms) {
+  const t = ms / 1000;
+
+  // Setup: terminal on the left, the login window on the right.
+  // Later the terminal returns, centred and wider, for Claude's report.
+  $('tbody').innerHTML = termHtml(t);
+  const back = t >= BACK;
+  $('term').style.left = back ? '200px' : '20px';
+  $('term').style.width = back ? '800px' : '540px';
+  if (back) {
+    const k = ease(prog(t, BACK + .3, BACK + .3 + FADE));
+    show($('term'), k, .97 + .03 * k, 0, 16 * (1 - k));
+  } else {
+    const k = ease(prog(t, TERM_OUT, TERM_OUT + FADE));
+    show($('term'), 1 - k, 1 - .04 * k, -50 * k);
+  }
+  renderLogin(t);
+
+  // Work: Sam on the left, Elon on the right.
+  const samIn = ease(prog(t, WIN_IN, WIN_IN + FADE)), elonIn = ease(prog(t, WIN_IN + .2, WIN_IN + .2 + FADE));
+  const winOut = ease(prog(t, BACK - .2, BACK - .2 + FADE));
+  show($('sam'), samIn * (1 - winOut), .97 + .03 * samIn - .03 * winOut, -30 * (1 - samIn));
+  show($('elon'), elonIn * (1 - winOut), .97 + .03 * elonIn - .03 * winOut, 30 * (1 - elonIn));
+
+  // Sam lists the bike.
+  const priceCps = CPS_CLAUDE * .7;
+  field($('s-title'), typed('Road bike', t, S.title, CPS_CLAUDE), 'Title', t >= S.title - .1 && t < S.titleEnd + .2, t);
+  const priceTxt = typed('120', t, S.price, priceCps);
+  field($('s-price'), priceTxt ? '$ ' + priceTxt : '', '$ Price', t >= S.price - .1 && t < S.priceEnd + .2, t);
+  $('s-pub').style.transform = `scale(${pressScale(t, S.click)})`;
+  const listed = ease(prog(t, S.listed, S.listed + FADE));
+  $('s-bike').style.top = '266px';
+  show($('s-bike'), listed, .96 + .04 * listed);
+  $('s-lamp').style.top = lerp(266, 328, listed) + 'px';
+  const samCur = along([
+    { t: S.curIn, x: 430, y: 330 }, { t: S.title - .1, x: 200, y: 103 }, { t: S.titleEnd + .1, x: 200, y: 103 },
+    { t: S.price - .1, x: 200, y: 147 }, { t: S.priceEnd + .1, x: 200, y: 147 }, { t: S.click - .05, x: 78, y: 194 },
+    { t: 999, x: 78, y: 194 },
+  ], t);
+  place($('s-cur'), samCur);
+  show($('s-cur'), prog(t, S.curIn, S.curIn + .25) * (1 - prog(t, S.curOut, S.curOut + .3)));
+  clickRing($('s-click'), samCur, t, t < S.price - .2 ? S.title - .1 : t < S.click - .1 ? S.price - .1 : S.click);
+
+  // Elon's feed gets the bike; Elon buys it.
+  const ins = ease(prog(t, E.feed, E.feed + FADE));
+  const SLOTS = [[18, 86], [292, 86], [18, 300], [292, 300]];
+  const slot = s => {
+    const i = Math.floor(s), f = s - i, a = SLOTS[i], b = SLOTS[Math.min(i + 1, 3)];
+    return { x: lerp(a[0], b[0], f), y: lerp(a[1], b[1], f) };
+  };
+  place($('e-bike'), slot(0));
+  show($('e-bike'), ins, .92 + .08 * ins);
+  place($('e-guitar'), slot(ins));
+  place($('e-camera'), slot(1 + ins));
+  const bought = t >= E.bought;
+  const bb = $('e-bike-btn');
+  bb.textContent = bought ? 'Purchased ✓' : 'Buy';
+  bb.classList.toggle('done', bought);
+  bb.style.width = bought ? '124px' : '96px';
+  bb.style.transform = `scale(${pressScale(t, E.click)})`;
+  const elonCur = along([{ t: E.curIn, x: 430, y: 420 }, { t: E.click - .15, x: 76, y: 260 }, { t: 999, x: 76, y: 260 }], t);
+  place($('e-cur'), elonCur);
+  show($('e-cur'), prog(t, E.curIn, E.curIn + .25) * (1 - prog(t, E.curOut, E.curOut + .3)));
+  clickRing($('e-click'), elonCur, t, E.click);
+
+  // Claude checks Sam's side: a snapshot sweep, then the stale badge and the empty notifications pulse red.
+  const sc = prog(t, C.scan, C.scanEnd);
+  $('s-scan').style.top = lerp(-90, PAGE_H, sc) + 'px';
+  $('s-scan').style.visibility = t >= C.scan && sc < 1 ? 'visible' : 'hidden';
+  $('s-ring').style.opacity = pulse(t, C.ring);
+  $('s-notering').style.opacity = pulse(t, C.noteRing);
+
+  // Claude's status pill while the terminal is hidden.
+  const step = [...STEPS].reverse().find(s => t >= s.at);
+  show($('pillbox'), fadeInOut(t, STEPS[0].at, BACK - .5), 1, 0, 8 * (1 - ease(prog(t, STEPS[0].at, STEPS[0].at + FADE))));
+  if (step) $('pill').innerHTML = `<span class="g">${spinner(t)}</span><span>${step.text}</span>`;
+
+  // Loop: fade in from black, fade out at the end.
+  $('fade').style.opacity = Math.max(1 - prog(t, 0, .4), prog(t, END - .6, END));
+}
+window.renderAt = renderAt;
+
+// ---------- review player ----------
+const q = new URLSearchParams(location.search);
+const RENDER = q.has('render');
+let scale = 1;
+function fit() {
+  scale = RENDER ? 1 : Math.min((innerWidth - 32) / 1200, (innerHeight - 80) / 675);
+  $('stage').style.transform = `scale(${scale})`;
+  $('wrap').style.width = 1200 * scale + 'px';
+  $('wrap').style.height = 675 * scale + 'px';
+}
+
+build();
+document.body.classList.add(RENDER ? 'render' : 'review');
+fit();
+addEventListener('resize', () => { fit(); renderAt(now); });
+
+let now = (parseFloat(q.get('t')) || 0) * 1000, playing = !RENDER && !q.has('t'), speed = 1, last = null;
+const seek = $('seek');
+seek.max = DURATION;
+function draw() { renderAt(now); seek.value = now; $('time').textContent = (now / 1000).toFixed(2) + ' / ' + (DURATION / 1000).toFixed(1) + 's'; $('play').textContent = playing ? 'Pause' : 'Play'; }
+function tick(ts) {
+  if (playing && last !== null) {
+    now += (ts - last) * speed;
+    if (now >= DURATION) { if ($('loop').checked) now %= DURATION; else { now = DURATION; playing = false; } }
+  }
+  last = ts;
+  draw();
+  requestAnimationFrame(tick);
+}
+if (RENDER) renderAt(now); else requestAnimationFrame(tick);
+
+$('play').onclick = () => { if (now >= DURATION) now = 0; playing = !playing; };
+seek.oninput = () => { now = +seek.value; };
+document.querySelectorAll('[data-speed]').forEach(b => b.onclick = () => {
+  speed = +b.dataset.speed;
+  document.querySelectorAll('[data-speed]').forEach(x => x.classList.toggle('on', x === b));
+});
+addEventListener('keydown', e => {
+  if (e.code === 'Space') { e.preventDefault(); $('play').click(); }
+  if (e.code === 'ArrowLeft') now = Math.max(0, now - 500);
+  if (e.code === 'ArrowRight') now = Math.min(DURATION, now + 500);
+});
+</script>
+</body>
+</html>
