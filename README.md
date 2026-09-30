@@ -89,7 +89,24 @@ A project slot holds only a name and description, never logins. Commit `.claude/
 - Profile lists: `~/.config/cast/` (plain YAML, editable).
 - Chrome data with logins: `~/.local/share/cast/`, readable only by you.
 
-Uninstalling keeps profiles. To delete everything, remove both folders.
+## Uninstall
+
+In a Claude Code session:
+
+```
+/plugin uninstall cast@bodpad
+/plugin marketplace remove bodpad
+```
+
+From a terminal instead: `claude plugin uninstall cast@bodpad`, then `claude plugin marketplace remove bodpad`.
+
+Uninstalling keeps profiles and logins. To delete them too, close all cast windows and remove both folders:
+
+```bash
+rm -rf ~/.config/cast ~/.local/share/cast
+```
+
+Team slots in a project's `.claude/cast.yaml` stay in that repository; delete the file there if nobody needs them.
 
 ## Troubleshooting
 
