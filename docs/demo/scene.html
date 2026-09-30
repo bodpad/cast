@@ -25,9 +25,9 @@
 
   /* Terminal */
   #term {
-    top: 20px; height: 635px; border-radius: 10px;
+    left: 20px; top: 20px; width: 1160px; height: 635px; border-radius: 10px;
     background: #15171c; border: 1px solid #2a2d35; overflow: hidden;
-    box-shadow: 0 20px 50px rgba(0,0,0,.45); transform-origin: 30% 50%;
+    box-shadow: 0 20px 50px rgba(0,0,0,.45); transform-origin: 50% 50%;
   }
   #term .bar {
     height: 30px; background: #1f2128; border-bottom: 1px solid #2a2d35;
@@ -37,7 +37,7 @@
   #term .bar .dots { position: absolute; left: 12px; display: flex; gap: 7px; }
   #term .bar .dots i { width: 11px; height: 11px; border-radius: 50%; background: #3b3e47; display: block; }
   #tbody {
-    padding: 14px 16px; font: 13px/19px var(--mono); color: #e5e7eb; white-space: pre-wrap;
+    height: 604px; overflow: hidden; padding: 16px 22px; font: 15px/22px var(--mono); color: #e5e7eb; white-space: pre-wrap;
     word-break: break-word;
   }
   .ln { position: relative; }
@@ -348,8 +348,8 @@ function build() {
       <div class="bar"><span class="dots"><i></i><i></i><i></i></span><span>claude · ~/myshop</span></div>
       <div id="tbody"></div>
     </div>
-    <div id="chip-login" class="chip" style="left:660px;top:112px"></div>
-    ${chromeWindow('login', 'plain', 660, 160, 440, 340, 'Sign in · MyShop', `${SITE}/login`)}
+    <div id="chip-login" class="chip" style="left:680px;top:122px"></div>
+    ${chromeWindow('login', 'plain', 680, 170, 440, 340, 'Sign in · MyShop', `${SITE}/login`)}
     ${chromeWindow('sam', 'sam', 20, WIN_Y, WIN_W, WIN_H, 'MyShop · Sell', `${SITE}/sell`, '<span class="person">Sam <span>· seller</span></span>')}
     ${chromeWindow('elon', 'elon', 610, WIN_Y, WIN_W, WIN_H, 'MyShop', SITE, '<span class="person">Elon <span>· buyer</span></span>')}
     <div id="pillbox" class="abs center" style="top:620px"><div id="pill"></div></div>
@@ -469,12 +469,11 @@ function renderLogin(t) {
 function renderAt(ms) {
   const t = ms / 1000;
 
-  // Setup: terminal on the left, the login window on the right.
-  // Later the terminal returns, centred and wider, for Claude's report.
+  // Setup: the terminal fills the stage, the login window opens over it.
+  // Later the terminal returns for Claude's report.
   $('tbody').innerHTML = termHtml(t);
+  $('tbody').scrollTop = 1e6;  // like a real terminal: the newest lines stay in view
   const back = t >= BACK;
-  $('term').style.left = back ? '200px' : '20px';
-  $('term').style.width = back ? '800px' : '540px';
   if (back) {
     const k = ease(prog(t, BACK + .3, BACK + .3 + FADE));
     show($('term'), k, .97 + .03 * k, 0, 16 * (1 - k));

@@ -1,12 +1,12 @@
 // Renders docs/demo/scene.html frame by frame into docs/demo.gif.
-// Usage: npm run demo (needs Google Chrome and gifski: sudo apt install gifski)
+// Usage: npm run demo (needs Google Chrome and gifski: https://gif.ski)
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, rmSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { chromium } from 'playwright-core';
 
-const FPS = 15;
+const FPS = 10;
 const WIDTH = 1200;
 const dir = dirname(fileURLToPath(import.meta.url));
 const frames = join(dir, '.frames');
@@ -15,7 +15,7 @@ const out = join(dir, '..', 'demo.gif');
 try {
   execFileSync('gifski', ['--version'], { stdio: 'ignore' });
 } catch {
-  console.error('gifski is not installed: sudo apt install gifski');
+  console.error('gifski is not installed: get it from https://gif.ski (snap install gifski, or the release binary)');
   process.exit(1);
 }
 
@@ -37,6 +37,6 @@ await browser.close();
 console.log(`\rframes ${count}/${count}`);
 
 const files = readdirSync(frames).sort().map(f => join(frames, f));
-execFileSync('gifski', ['--fps', String(FPS), '--width', String(WIDTH), '--quality', '85', '-o', out, ...files], { stdio: 'inherit' });
+execFileSync('gifski', ['--fps', String(FPS), '--width', String(WIDTH), '--quality', '75', '--lossy-quality', '60', '--motion-quality', '60', '-o', out, ...files], { stdio: 'inherit' });
 rmSync(frames, { recursive: true, force: true });
 console.log(`${out}: ${(statSync(out).size / 1e6).toFixed(1)} MB`);
