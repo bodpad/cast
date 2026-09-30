@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { chmodSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, test } from 'node:test';
-import { applyColor, launchChrome } from '../src/chrome.js';
+import { applyColor, launchChrome, nameSessionWindows } from '../src/chrome.js';
 import { briefList, windowLook } from '../src/format.js';
 import { normalizeSite, pageUrl } from '../src/login-window.js';
 import { classifyHosts, isSignInHost } from '../src/sites.js';
@@ -202,6 +202,41 @@ describe('window look', () => {
     writeFileSync(file, '{broken');
     applyColor(dir, '#43a047');
     assert.equal(readFileSync(file, 'utf8'), '{broken', 'a file Chrome may still repair is left alone');
+  });
+});
+
+describe('restored window names', () => {
+  /** An SNSS record: uint16 size, command id, payload. */
+  const record = (id: number, payload: Buffer) => {
+    const head = Buffer.alloc(3);
+    head.writeUInt16LE(payload.length + 1, 0);
+    head[2] = id;
+    return Buffer.concat([head, payload]);
+  };
+  const ints = (...n: number[]) => Buffer.from(new Int32Array(n).buffer);
+  /** The last title set for each window, as Chrome reads the file. */
+  const titles = (b: Buffer) => {
+    const out = new Map<number, string>();
+    for (let i = 8; i < b.length; i += 2 + b.readUInt16LE(i)) {
+      if (b[i + 2] === 31) out.set(b.readInt32LE(i + 7), b.toString('utf8', i + 15, i + 15 + b.readInt32LE(i + 11)));
+    }
+    return out;
+  };
+
+  test('each window of a saved session gets the new title', () => {
+    const sessions = join(sb.root, 'p', 'Default', 'Sessions');
+    mkdirSync(sessions, { recursive: true });
+    const file = join(sessions, 'Session_1');
+    writeFileSync(file, Buffer.concat([
+      Buffer.from('SNSS'), ints(3),
+      record(0, ints(7, 1)), record(0, ints(9, 2)),
+      record(31, Buffer.concat([ints(12, 7, 3), Buffer.from('old\0')])),
+    ]));
+    writeFileSync(join(sessions, 'Session_2'), 'not a session');
+
+    nameSessionWindows(join(sb.root, 'p'), 'Ann (approves…) · cast');
+    assert.deepEqual(titles(readFileSync(file)), new Map([[7, 'Ann (approves…) · cast'], [9, 'Ann (approves…) · cast']]));
+    assert.equal(readFileSync(join(sessions, 'Session_2'), 'utf8'), 'not a session');
   });
 });
 

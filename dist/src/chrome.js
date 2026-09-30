@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readlinkSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, readlinkSync, rmSync, writeFileSync } from 'node:fs';
 import { hostname } from 'node:os';
 import { join } from 'node:path';
 import { ensurePrivateDir } from './paths.js';
@@ -23,6 +23,9 @@ export async function launchChrome(dir, opts = {}) {
     rmSync(portFile, { force: true });
     if (opts.look?.color)
         applyColor(dir, opts.look.color);
+    const restore = opts.restore && existsSync(join(dir, 'Default', 'Sessions'));
+    if (restore && opts.look)
+        nameSessionWindows(dir, opts.look.title);
     const args = [
         `--user-data-dir=${dir}`,
         '--password-store=basic',
@@ -32,7 +35,8 @@ export async function launchChrome(dir, opts = {}) {
         // without it the DevTools port makes pages see navigator.webdriver = true. Nothing else is masked.
         '--disable-blink-features=AutomationControlled',
         // Only when there is a session: on a new profile the flag opens a window that ignores --window-name.
-        ...(opts.restore && existsSync(join(dir, 'Default', 'Sessions')) ? ['--restore-last-session'] : []),
+        ...(restore ? ['--restore-last-session'] : []),
+        // Names new windows only; restored ones keep the name saved in the session (see nameSessionWindows).
         ...(opts.look ? [`--window-name=${opts.look.title}`] : []),
         // Background tabs keep rendering, so Claude can act in any tab (as Playwright's own launch does).
         ...(opts.debugPort ? ['--remote-debugging-port=0', ...KEEP_BACKGROUND_TABS_ALIVE] : []),
@@ -154,6 +158,67 @@ export function applyColor(dir, color) {
         theme: { ...prefs.browser?.theme, user_color2: argb, color_variant2: 3 },
     };
     writeFileSync(file, JSON.stringify(prefs), { mode: 0o600 });
+}
+/** SNSS commands (components/sessions/core/session_service_commands.cc). */
+const SET_TAB_WINDOW = 0;
+const SET_WINDOW_USER_TITLE = 31;
+/**
+ * Restored windows ignore --window-name and keep the title saved in the session ("Name window…"),
+ * so a profile made before window names existed, or a login window restored as Claude's window,
+ * would show the wrong title. Appends a SetWindowUserTitle command for each window to the session
+ * files; the last command wins. Leaves files in a format it does not know alone.
+ */
+export function nameSessionWindows(dir, title) {
+    const sessions = join(dir, 'Default', 'Sessions');
+    let files;
+    try {
+        files = readdirSync(sessions).filter(f => f.startsWith('Session_'));
+    }
+    catch {
+        return;
+    }
+    for (const f of files) {
+        const file = join(sessions, f);
+        try {
+            const windows = sessionWindows(readFileSync(file));
+            if (windows?.size)
+                appendFileSync(file, Buffer.concat([...windows].map(w => userTitleCommand(w, title))));
+        }
+        catch { /* leave it to Chrome */ }
+    }
+}
+/** Window ids in an SNSS session file, or undefined when it is not one. */
+function sessionWindows(b) {
+    if (b.length < 8 || b.toString('latin1', 0, 4) !== 'SNSS' || b.readInt32LE(4) !== 3)
+        return undefined;
+    const windows = new Set();
+    for (let i = 8; i + 3 <= b.length;) {
+        const size = b.readUInt16LE(i);
+        const id = b[i + 2];
+        if (size < 1 || i + 2 + size > b.length)
+            return undefined;
+        // SetTabWindow is a struct {window id, tab id}; SetWindowUserTitle a pickle {payload size, window id, …}.
+        if (id === SET_TAB_WINDOW && size === 9)
+            windows.add(b.readInt32LE(i + 3));
+        if (id === SET_WINDOW_USER_TITLE && size >= 9)
+            windows.add(b.readInt32LE(i + 7));
+        i += 2 + size;
+    }
+    return windows;
+}
+/** SetWindowUserTitle(window, title) as a pickle: payload size, window id, string length, UTF-8 padded to 4 bytes. */
+function userTitleCommand(window, title) {
+    const text = Buffer.from(title, 'utf8');
+    const padded = Math.ceil(text.length / 4) * 4;
+    const pickle = Buffer.alloc(4 + 4 + 4 + padded);
+    pickle.writeUInt32LE(pickle.length - 4, 0);
+    pickle.writeInt32LE(window, 4);
+    pickle.writeInt32LE(text.length, 8);
+    text.copy(pickle, 12);
+    const head = Buffer.alloc(3);
+    head.writeUInt16LE(pickle.length + 1, 0);
+    head[2] = SET_WINDOW_USER_TITLE;
+    return Buffer.concat([head, pickle]);
 }
 /** Whether a Chrome runs on this profile folder, by its SingletonLock ("<host>-<pid>"). */
 export function isRunning(dir) {

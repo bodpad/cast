@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.6.2 — 2026-09-30
+
+### Fixed
+- The person's name in the window title now shows in restored windows too: profiles made before 0.5.0 showed the page title, and a profile first opened for login kept "· log in ·" in Claude's window.
+
 ## 0.6.1 — 2026-09-30
 
 ### Changed
