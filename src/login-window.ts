@@ -156,6 +156,6 @@ h1{font-size:1.6rem}li{margin:.4rem 0}</style>
 <li><b>Close this window</b> when you are done. That tells Claude you are finished.</li>
 </ol>
 ${known}
-<p>This is a regular Chrome: nothing is automated while you log in. cast never stores or types passwords; it only records which sites you visited (host names, no cookies).</p>
+<p>This is a regular Chrome: nothing is automated while you log in. cast never stores or types passwords; it only notes which sites you visited and the last page on each (no cookies).</p>
 <p>Keep the Claude Code session running until you close the window.</p>`;
 }
