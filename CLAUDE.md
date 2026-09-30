@@ -1,0 +1,41 @@
+# cast
+
+Claude Code plugin: one persistent Chrome profile per person, several logged-in browsers driven by Claude through Playwright MCP.
+
+## Why
+
+Developers test apps where several people interact (Sam sends a chat message, Elon must receive it), often behind corporate SSO (Microsoft Entra, Okta, GoDaddy). Claude needs a browser per person, each already logged in, open at the same time.
+
+Core ideas:
+- **A profile is a person, not a site.** One Chrome profile holds all of that person's logins (app, SSO, mail).
+- **A human logs in, Claude never does.** `/cast:add` and `/cast:login` open a plain Chrome for the human; when a session expires Claude asks for `/cast:login <name>`.
+- **Two modes of one profile:** the login window (plain Chrome, no control port, so SSO bot checks pass) and Claude's window (the same Chrome with a DevTools port, Playwright MCP attached).
+- **Claude knows who is who:** a `SessionStart` hook lists profiles (name, email, role, sites) in every session.
+- Scopes like Claude's own: `local` (this project), `project` (team slot in `.claude/cast.yaml`, no credentials), `user` (all projects).
+
+Status: Linux only. Installed as `/plugin marketplace add bodpad/cast`, `/plugin install cast@bodpad`. Deferred work is listed at the end of `PLAN.md`.
+
+@CONTRIBUTING.md
+
+## Commands
+
+- `npm test` — build + unit + integration tests (real Chrome, headless)
+- `CAST_TEST_HEADED=1 npm test` — the same with visible windows; run it after touching Chrome launch or login code
+- `claude plugin validate --strict .`
+
+## Rules
+
+- Everything in the repository is in English.
+- After changing `src/`, rebuild and commit `dist/src` in the same commit: users run `dist/` without a build step.
+- Releasing: bump the version in `package.json` and `.claude-plugin/plugin.json`, add a `CHANGELOG.md` entry. Users get updates only when the version changes.
+- Never make cast type passwords, log in by itself, or print cookies or tokens.
+
+## Easy to break
+
+Details and the reasons are in `PLAN.md`.
+
+- The login window (`/cast:add`, `/cast:login`) must have no DevTools port: a port makes SSO bot checks refuse the login.
+- Stop Chrome with `SIGINT`, never `SIGTERM`: `SIGTERM` loses cookies and history not flushed yet.
+- Closing a profile: stop Chrome first, then disconnect Playwright, or the saved session loses its tabs.
+- After Playwright attaches, wait for the tab list to settle before selecting a tab (session restore races).
+- Keep `--password-store=basic` on every Chrome cast starts, so all windows read the same cookies.
