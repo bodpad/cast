@@ -2,14 +2,9 @@
 
 **Several logged-in browser users for [Claude Code](https://claude.com/claude-code).**
 
-To test an app where people interact (a chat, a marketplace, an approval flow), you need a browser per person, each logged in as that person. cast gives Claude one Chrome profile per person. You log in once; Claude opens the browsers itself, several at a time.
+![cast demo: Claude drives two logged-in browsers and finds a bug](docs/demo.gif)
 
-```
-You:    /cast:add Sam       → Chrome opens, you log in as Sam, close the window
-You:    /cast:add Elon      → same for Elon
-You:    Send "hi" from Sam to Elon and check that Elon gets it.
-Claude: opens both windows, already logged in, sends as Sam, checks as Elon.
-```
+To test an app where people interact (a chat, a marketplace, an approval flow), you need a browser per person, each logged in as that person. cast gives Claude one Chrome profile per person. You log in once; Claude opens the browsers itself, several at a time.
 
 Works with corporate SSO (Microsoft Entra, Okta, Google), because you log in yourself in a regular Chrome.
 
