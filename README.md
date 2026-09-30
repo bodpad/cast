@@ -31,6 +31,8 @@ To update: `/plugin marketplace update bodpad`, then `/plugin update cast@bodpad
 2. A Chrome window opens. Log in everywhere Sam needs (your app, SSO, email), choose **"Stay signed in"** on MFA, then **close the window**.
 3. Confirm the sites cast suggests (where you landed, e.g. `localhost:3000`; sign-in pages are left out).
 
+No app at hand? Try it on the [demo chat](examples/chat): `node examples/chat/server.mjs`.
+
 Now every Claude Code session in this project knows Sam. Just ask:
 
 - *"Check Sam's inbox for the invitation and open the link."*
