@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.1 — 2026-09-30
+
+### Changed
+- Chrome is started with `--disable-blink-features=AutomationControlled`, the same default as Playwright MCP, so pages see `navigator.webdriver = false` while Claude works on the user's behalf. Nothing else is masked.
+
+### Fixed
+- Actions could hang when Chrome activated another tab while restoring the session; cast now waits for the restore to finish and brings the working tab to the front.
+- The login instruction tab no longer turns into an error page after restore, and it is closed when Claude opens the profile.
+- Background tabs keep rendering in Claude's window.
+
 ## 0.2.0 — 2026-09-30
 
 ### Changed

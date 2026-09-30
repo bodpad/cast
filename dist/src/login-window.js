@@ -1,11 +1,13 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import initSqlJs from 'sql.js';
 import { launchChrome } from './chrome.js';
+import { ensurePrivateDir } from './paths.js';
 import { classifyHosts } from './sites.js';
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000;
+/** The instruction page, kept in the profile folder; the gateway closes its tab when Claude opens the profile. */
+export const INSTRUCTIONS_FILE = 'cast-login.html';
 /** Chrome stores times as microseconds since 1601-01-01. */
 const CHROME_EPOCH_OFFSET_US = 11_644_473_600_000_000;
 /**
@@ -17,37 +19,33 @@ const CHROME_EPOCH_OFFSET_US = 11_644_473_600_000_000;
  */
 export async function openLoginWindow(dir, opts) {
     const test = process.env.CAST_TEST_HEADLESS === '1';
-    const pageDir = mkdtempSync(join(tmpdir(), 'cast-login-'));
-    const instructions = join(pageDir, 'cast.html');
+    // Inside the profile, not in /tmp: the session is restored later and the tab must still load.
+    ensurePrivateDir(dir);
+    const instructions = join(dir, INSTRUCTIONS_FILE);
     writeFileSync(instructions, instructionPage(opts.name, opts.sites ?? []));
     const startedUs = Date.now() * 1000 + CHROME_EPOCH_OFFSET_US - 1_000_000;
+    const chrome = await launchChrome(dir, {
+        restore: true,
+        // Tests play the human over a DevTools port; real login windows never get one.
+        debugPort: test && !!opts.onReady,
+        urls: [pathToFileURL(instructions).href, ...(opts.sites ?? []).map(siteUrl)],
+    });
     try {
-        const chrome = await launchChrome(dir, {
-            restore: true,
-            // Tests play the human over a DevTools port; real login windows never get one.
-            debugPort: test && !!opts.onReady,
-            urls: [pathToFileURL(instructions).href, ...(opts.sites ?? []).map(siteUrl)],
-        });
-        try {
-            if (opts.onReady)
-                await opts.onReady({ endpoint: chrome.endpoint, close: () => chrome.process.kill('SIGINT') });
-            let timer;
-            const timedOut = await Promise.race([
-                chrome.exited.then(() => false),
-                new Promise(resolve => { timer = setTimeout(() => resolve(true), opts.timeoutMs ?? DEFAULT_TIMEOUT_MS); }),
-            ]);
-            clearTimeout(timer);
-            if (timedOut)
-                await chrome.close();
-            return { ...await visitedHosts(dir, startedUs), timedOut };
-        }
-        catch (e) {
+        if (opts.onReady)
+            await opts.onReady({ endpoint: chrome.endpoint, close: () => chrome.process.kill('SIGINT') });
+        let timer;
+        const timedOut = await Promise.race([
+            chrome.exited.then(() => false),
+            new Promise(resolve => { timer = setTimeout(() => resolve(true), opts.timeoutMs ?? DEFAULT_TIMEOUT_MS); }),
+        ]);
+        clearTimeout(timer);
+        if (timedOut)
             await chrome.close();
-            throw e;
-        }
+        return { ...await visitedHosts(dir, startedUs), timedOut };
     }
-    finally {
-        rmSync(pageDir, { recursive: true, force: true });
+    catch (e) {
+        await chrome.close();
+        throw e;
     }
 }
 /** "https://Outlook.office.com/mail" → "outlook.office.com"; ports are kept (localhost:3000 matters). */

@@ -7,7 +7,7 @@ cast keeps real, logged-in browser sessions on your machine and lets Claude use 
 - **Never types, asks for or stores passwords.** A human logs in in a plain Chrome window. Claude is instructed never to fill login forms and to ask for `/cast:login <name>` when a session expires.
 - **Never prints cookies or tokens.** It records only host names of sites visited during login (read from the profile's own browsing history after the window closes).
 - **Keeps profiles private to your user.** Chrome data folders are created with mode `0700`. `.claude/cast.yaml` (committed team slots) holds only names and descriptions, never emails or credentials.
-- **Does not disguise automation.** The login window is a plain Chrome because a human uses it. When Claude works, the browser has a DevTools port and pages see `navigator.webdriver = true`.
+- **Acts as the person, in the person's own session.** A human logs in; Claude then works in that session on the user's behalf. Like Playwright MCP by default, cast starts Chrome with `--disable-blink-features=AutomationControlled`, so pages see `navigator.webdriver = false`. It does nothing more: no fingerprint spoofing, no CAPTCHA solving, no automated logins. You are responsible for following the terms of the services you use through cast.
 
 ## What cast does not protect against
 

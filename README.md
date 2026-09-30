@@ -175,7 +175,7 @@ The profile list is plain YAML: you can edit sites or descriptions by hand.
 - cast **never types or stores passwords**. You log in yourself; Claude is instructed never to fill login forms.
 - cast **never prints cookies or tokens**. From your login session it records only host names of visited sites.
 - Chrome data folders are readable only by you (`0700`). Deleting a profile with `/cast:remove` deletes its data.
-- cast does not disguise automation: the login window is a plain Chrome because a human uses it; when Claude works, sites can see an automated browser.
+- Claude acts on your behalf in your own session. cast uses Playwright MCP's default of not flagging the browser as automated (`navigator.webdriver = false`) and nothing beyond that: no fingerprint spoofing, no CAPTCHA solving, no automated logins. Follow the terms of the services you use.
 - See [SECURITY.md](SECURITY.md) for details and how to report a vulnerability.
 
 ## Troubleshooting
@@ -190,7 +190,7 @@ Claude Code must be started from a desktop session where `DISPLAY` is set (`echo
 One Chrome profile can be used by one browser at a time. Close the other window: a `/cast:login` window, or the same profile opened by another Claude Code session.
 
 **SSO says "your browser behaves strangely" or blocks the login.**
-Make sure you log in in the `/cast:add` or `/cast:login` window: it is a plain Chrome and passes such checks. Claude's own work runs under Playwright, which sites can recognise as automation; if a site refuses automated browsers even after login, that is its policy and cast does not try to hide automation.
+Make sure you log in in the `/cast:add` or `/cast:login` window: it is a plain Chrome with no control port and passes such checks. When Claude works, the window reports `navigator.webdriver = false` (the same default as Playwright MCP), but a site may still detect automation in other ways; cast does not go further than that.
 
 **Claude says a session expired.**
 Run `/cast:login <name>`, log in again, close the window. Choose "Stay signed in" to keep sessions longer.

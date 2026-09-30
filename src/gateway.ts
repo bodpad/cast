@@ -4,6 +4,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import type { CallToolResult, Tool } from '@modelcontextprotocol/sdk/types.js';
 import { type Chrome, launchChrome } from './chrome.js';
+import { INSTRUCTIONS_FILE } from './login-window.js';
 import { ensurePrivateDir } from './paths.js';
 import { VERSION } from './version.js';
 
@@ -87,9 +88,7 @@ export class Gateway {
     });
     try {
       await client.connect(transport);
-      // Playwright's "current" tab may be a background one, where Chrome pauses rendering and actions
-      // hang. Selecting it brings it to the front.
-      await client.callTool({ name: 'browser_tabs', arguments: { action: 'select', index: 0 } });
+      await settleTabs(client);
     } catch (e) {
       await chrome.close();
       throw e;
@@ -145,6 +144,35 @@ export class Gateway {
       throw e;
     }
   }
+}
+
+/**
+ * Waits until Chrome has finished restoring the session (the tab list stops changing), closes the
+ * login instruction tab, and brings Playwright's current tab to the front: Chrome activates the
+ * last-used tab while restoring, and actions in a background tab hang.
+ */
+async function settleTabs(client: Client): Promise<void> {
+  const list = async () => resultText(await client.callTool({ name: 'browser_tabs', arguments: { action: 'list' } }) as CallToolResult);
+  let previous = await list();
+  for (let i = 0; i < 20; i++) {
+    await new Promise(r => setTimeout(r, 250));
+    const current = await list();
+    if (current === previous) break;
+    previous = current;
+  }
+  for (;;) {
+    const lines = previous.split('\n').filter(l => /^- \d+:/.test(l));
+    const stale = lines.find(l => l.includes(INSTRUCTIONS_FILE));
+    if (!stale || lines.length < 2) break;
+    const index = Number(/^- (\d+):/.exec(stale)![1]);
+    await client.callTool({ name: 'browser_tabs', arguments: { action: 'close', index } });
+    previous = await list();
+  }
+  await client.callTool({ name: 'browser_tabs', arguments: { action: 'select', index: 0 } });
+}
+
+function resultText(result: CallToolResult): string {
+  return result.content.map(c => (c.type === 'text' ? c.text : '')).join('\n');
 }
 
 function spawnChild(extraArgs: string[], cwd?: string): StdioClientTransport {

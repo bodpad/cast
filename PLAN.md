@@ -51,7 +51,10 @@ The `cast` MCP server in Node/TS. For each open profile it starts a **regular Go
   - **Current tab:** after attaching, Playwright's "current" tab may be a background tab; Chrome pauses rendering there and clicks time out ("waiting for element to be … stable"). The gateway calls `browser_tabs select 0` right after connecting, which brings that tab to the front.
   - The tab order after restore varies between runs.
   - Dialogs (`### Modal state`) work the same over `--cdp-endpoint`.
-  - `navigator.webdriver` is `true` with the DevTools port. Note: Playwright MCP's own launch (the 0.1.x engine) passes `--disable-blink-features=AutomationControlled`, which hides it. cast does not add that flag: it does not disguise automation.
+  - `navigator.webdriver` is `true` with the DevTools port. Playwright MCP's own launch (the 0.1.x engine) passes `--disable-blink-features=AutomationControlled`; since 0.2.1 cast passes it too (checked: `false` with the port, headed and headless). Decision with the user: cast automates the person's work in their own session, not anonymous traffic, so it matches Playwright MCP's default. Nothing beyond that flag (no fingerprint spoofing, no CAPTCHA solving, no automated logins).
+  - **Restore races:** Chrome activates the last-used tab while restoring, possibly after Playwright picked its current tab. The gateway waits until the tab list stops changing (250 ms polls, up to 5 s), then selects tab 0.
+  - The login instruction page lives in the profile folder (`cast-login.html`), so a restored tab still loads; the gateway closes that tab when Claude opens the profile.
+  - Claude's window also gets `--disable-renderer-backgrounding --disable-backgrounding-occluded-windows --disable-background-timer-throttling` (Playwright's defaults) so background tabs keep working.
   - While Claude works, the DevTools port listens on 127.0.0.1 (see SECURITY.md); Playwright's own launch used a pipe.
 
 ### Spike results (Linux, Chrome 151, @playwright/mcp 0.0.83, 2026-09-30)
@@ -183,7 +186,7 @@ cast: browser users available (open with cast_open / browser_* tools with profil
 
 ## Deferred (improvements, to discuss at the end)
 - One profile in two Claude sessions: a lock and a "Sam is already open in another Claude session" message. Today Chrome refuses a busy folder; the gateway adds a readable hint and the login window checks `SingletonLock`.
-- Sites that reject automated browsers even after login (possible for Teams/Entra with strict policies): cast will not disguise automation; document per-site findings.
+- Sites that still detect automation after login (possible for Teams/Entra with strict policies): document per-site findings; cast goes no further than Playwright MCP's default.
 - Detecting logged-in / expired state (a rule by URL or selector), `/cast:check`, a `clean` profile for sign-up tests.
 - Whether to hide `browser_run_code_unsafe` (it can read cookies).
 - macOS and Windows, optional headless, TOTP via keychain, video or GIF recording, publishing to npm (`@bodpad/cast`) and to the Anthropic directory.

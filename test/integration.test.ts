@@ -90,7 +90,7 @@ describe('login window', () => {
     assert.equal(statSync(findProfile(sb.paths, 'Sam')!.dir).mode & 0o777, 0o700);
   });
 
-  test('the login window is a plain Chrome, not flagged as automated', { skip: !headed && 'headless Chrome always reports webdriver' }, async () => {
+  test('the login window is not flagged as automated', async () => {
     addProfile(sb.paths, 'Plain', 'local', {});
     const dir = findProfile(sb.paths, 'Plain')!.dir;
     const report = () => site.hits.find(h => h.startsWith('/report?'));
@@ -150,6 +150,11 @@ describe('gateway', () => {
     assert.match(text(elon), /Hello elon/);
     assert.deepEqual(gateway.openNames().sort(), ['Elon', 'Sam']);
     assertNoSecrets(text(sam) + text(elon));
+  });
+
+  test("Claude's window reports navigator.webdriver = false, like Playwright MCP's default", async () => {
+    const r = await gateway.call(gp('Sam'), 'browser_evaluate', { function: '() => navigator.webdriver' });
+    assert.match(text(r), /### Result\s+false/);
   });
 
   test('confirm() is handled with browser_handle_dialog', async () => {

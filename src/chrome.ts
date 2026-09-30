@@ -6,10 +6,16 @@ import { ensurePrivateDir } from './paths.js';
 
 export class ChromeError extends Error {}
 
+const KEEP_BACKGROUND_TABS_ALIVE = [
+  '--disable-renderer-backgrounding',
+  '--disable-backgrounding-occluded-windows',
+  '--disable-background-timer-throttling',
+];
+
 export interface LaunchOptions {
   /** Tabs to open in addition to the restored session. */
   urls?: string[];
-  /** Open a DevTools port for Playwright. Pages then see navigator.webdriver = true. */
+  /** Open a DevTools port for Playwright. */
   debugPort?: boolean;
   /** Reopen the tabs of the previous session. */
   restore?: boolean;
@@ -40,8 +46,12 @@ export async function launchChrome(dir: string, opts: LaunchOptions = {}): Promi
     '--password-store=basic',
     '--no-first-run',
     '--no-default-browser-check',
+    // Claude acts on the user's behalf in the user's own session. Same default as Playwright MCP:
+    // without it the DevTools port makes pages see navigator.webdriver = true. Nothing else is masked.
+    '--disable-blink-features=AutomationControlled',
     ...(opts.restore ? ['--restore-last-session'] : []),
-    ...(opts.debugPort ? ['--remote-debugging-port=0'] : []),
+    // Background tabs keep rendering, so Claude can act in any tab (as Playwright's own launch does).
+    ...(opts.debugPort ? ['--remote-debugging-port=0', ...KEEP_BACKGROUND_TABS_ALIVE] : []),
     ...(process.env.CAST_TEST_HEADLESS === '1' ? ['--headless=new'] : []),
     ...(opts.urls ?? []),
   ];
