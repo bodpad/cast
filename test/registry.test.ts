@@ -261,7 +261,7 @@ describe('chrome start errors', () => {
 
   const dir = () => join(sb.root, 'profile');
 
-  test('Chrome not installed', () => withEnv({ CAST_CHROME: join(sb.root, 'nope') }, () =>
+  test('Chrome not installed', () => withEnv({ CAST_TEST_HEADLESS: '1', CAST_CHROME: join(sb.root, 'nope') }, () =>
     assert.rejects(launchChrome(dir()), /Google Chrome is not installed .*CAST_CHROME/)));
 
   test('no display', () => withEnv({ CAST_TEST_HEADLESS: undefined, DISPLAY: undefined, WAYLAND_DISPLAY: undefined }, () =>

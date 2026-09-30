@@ -4,6 +4,10 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    ignore:
+      # Types match the oldest supported Node (engines: >=20).
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     groups:
       playwright:
         patterns: ["@playwright/*", "playwright*"]
