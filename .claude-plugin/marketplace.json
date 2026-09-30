@@ -1,5 +1,5 @@
 {
-  "name": "netmate",
+  "name": "bodpad",
   "owner": { "name": "bodpad" },
   "description": "Plugins for testing multi-user web apps with Claude Code.",
   "plugins": [

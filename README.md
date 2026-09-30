@@ -45,10 +45,10 @@ In Claude Code:
 
 ```
 /plugin marketplace add bodpad/cast
-/plugin install cast@netmate
+/plugin install cast@bodpad
 ```
 
-The first command registers the `netmate` marketplace (this GitHub repository). The second installs the `cast` plugin from it. Claude Code installs the npm dependencies itself. Restart Claude Code or run `/reload-plugins`.
+The first command registers the `bodpad` marketplace (this GitHub repository). The second installs the `cast` plugin from it. Claude Code installs the npm dependencies itself. Restart Claude Code or run `/reload-plugins`.
 
 Check that it works:
 
@@ -204,9 +204,9 @@ Run `/cast:list`. If it is empty, the profiles may be in another project (local 
 ## Update and uninstall
 
 ```
-/plugin marketplace update netmate     # refresh the marketplace
-/plugin update cast@netmate            # install the latest version of cast
-/plugin uninstall cast@netmate         # remove the plugin
+/plugin marketplace update bodpad   # refresh the marketplace
+/plugin update cast@bodpad         # install the latest version of cast
+/plugin uninstall cast@bodpad      # remove the plugin
 ```
 
 Uninstalling keeps your profiles and logins. To delete them too, remove `~/.config/cast` and `~/.local/share/cast`.

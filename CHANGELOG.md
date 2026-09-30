@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.3 — 2026-09-30
+
+### Changed
+- The marketplace is renamed from `netmate` to `bodpad`: install with `/plugin install cast@bodpad`. If you installed `cast@netmate`, run `/plugin marketplace remove netmate`, then add `bodpad/cast` again. Profiles and logins are kept.
+
 ## 0.1.2 — 2026-09-30
 
 ### Changed

@@ -24,7 +24,7 @@ After that Claude knows at startup: "there are browsers for Sam (sam@email.com: 
 - Windows are **always visible**, so the developer sees what happens. No headless mode in the first version.
 - No import of an existing profile (`--from`): profiles are created from scratch.
 - **Linux only** in the first version. macOS and Windows come after a working solution.
-- Repository `bodpad/cast`. The marketplace is called `netmate`. Install: `/plugin marketplace add bodpad/cast`, then `/plugin install cast@netmate`. Do not use the `claude-` prefix in names.
+- Repository `bodpad/cast`. The marketplace is called `bodpad` (renamed from `netmate` on 2026-09-30, before any users). Install: `/plugin marketplace add bodpad/cast`, then `/plugin install cast@bodpad`. Do not use the `claude-` prefix in names.
 - The README warns about privacy: Claude reads what is visible in the profiles, mail included.
 
 ### Storage scopes (like Claude's local / project / user)
@@ -73,7 +73,7 @@ Playwright MCP was chosen because `/cast:add` needs standard events: navigations
 - Claude Code moves a tool call running longer than ~120 s to the background; quitting the session cancels it. The skills and the instruction page say to keep the session open.
 
 ## Claude Code plugin facts (checked on code.claude.com, 2026-09-29/30)
-- `.claude-plugin/marketplace.json`: `{ "name": "netmate", "owner": {...}, "description": "...", "plugins": [{ "name": "cast", "source": "./", "description": "..." }] }`. The install id is `<plugin>@<marketplace name>`.
+- `.claude-plugin/marketplace.json`: `{ "name": "bodpad", "owner": {...}, "description": "...", "plugins": [{ "name": "cast", "source": "./", "description": "..." }] }`. The install id is `<plugin>@<marketplace name>`.
 - Plugins are distributed through marketplaces (git repositories). npm is only an optional plugin source type; cast does not need it.
 - `.claude-plugin/plugin.json`: `{ "name": "cast", ... }`. All components get the `cast:` prefix.
 - Slash commands are written as skills (`commands/` is the legacy format): `skills/<name>/SKILL.md` becomes `/cast:<name>`. Frontmatter: `description`, `argument-hint`, `disable-model-invocation: true` (human only), `allowed-tools`. Arguments: `$ARGUMENTS`, `$0`, `$1` (0-based).
@@ -81,7 +81,7 @@ Playwright MCP was chosen because `/cast:add` needs standard events: navigations
 - Hooks: `hooks/hooks.json`. The stdout of a SessionStart hook goes into Claude's context.
 - Dependencies: on install from a marketplace Claude Code runs `npm ci --ignore-scripts` in the plugin cache if `package.json` and `package-lock.json` exist (60 s timeout). With `--plugin-dir` (local development) it does not, so a manual `npm install` is needed. `dist/` is committed so there is no build step. Keep `devDependencies` minimal: tests on `node:test`, no vitest.
 - Validation: `claude plugin validate --strict .`
-- `@netmate/cast` is free on npm (publishing deferred).
+- npm name `@bodpad/cast`: the package name is free; whether the `bodpad` scope is available needs an npm login (publishing deferred, the package is `private`).
 
 ## Repository layout
 ```
@@ -162,7 +162,7 @@ cast: browser users available (open with cast_open / browser_* tools with profil
     - the login survives close and open;
     - `cast_list` and `browser_*` output does not contain cookie values.
 - ✅ `claude plugin validate --strict .`
-- ✅ Install from a local marketplace (`claude plugin marketplace add <path>`, `claude plugin install cast@netmate`): 5 skills, 1 hook, 1 MCP server.
+- ✅ Install from a local marketplace (`claude plugin marketplace add <path>`, `claude plugin install cast@bodpad`): 5 skills, 1 hook, 1 MCP server.
 - ✅ `CAST_TEST_HEADED=1`: all integration tests pass with visible windows, including `navigator.webdriver === false` in the login window.
 - **Manual e2e (in progress):** first run found the SSO bot-check problem above (fixed in 0.1.1).
   1. Install the plugin → `/cast:add Sam`, `/cast:add Elon` on a local test page.
@@ -174,4 +174,4 @@ cast: browser users available (open with cast_open / browser_* tools with profil
 - Sites that reject automated browsers even after login (possible for Teams/Entra with strict policies): cast will not disguise automation; document per-site findings.
 - Detecting logged-in / expired state (a rule by URL or selector), `/cast:check`, a `clean` profile for sign-up tests.
 - Whether to hide `browser_run_code_unsafe` (it can read cookies).
-- macOS and Windows, optional headless, TOTP via keychain, video or GIF recording, publishing to npm (`@netmate/cast`) and to the Anthropic directory.
+- macOS and Windows, optional headless, TOTP via keychain, video or GIF recording, publishing to npm (`@bodpad/cast`) and to the Anthropic directory.
