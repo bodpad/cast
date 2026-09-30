@@ -6,10 +6,11 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { chromium } from 'playwright-core';
 import { Gateway } from '../src/gateway.js';
-import { spawn } from 'node:child_process';
-import { type LoginWindow, openLoginWindow } from '../src/login-window.js';
+import { execFileSync, spawn } from 'node:child_process';
+import { isRunning } from '../src/chrome.js';
+import { type LoginWindow, openLoginWindow, startLoginWindow } from '../src/login-window.js';
 import { outputDir } from '../src/paths.js';
-import { addProfile, findProfile } from '../src/registry.js';
+import { addProfile, findProfile, updateProfile } from '../src/registry.js';
 import { type Sandbox, type TestSite, sandbox, startSite, text } from './helpers.js';
 
 // CAST_TEST_HEADED=1 shows the windows (checks what headless cannot, e.g. navigator.webdriver).
@@ -107,6 +108,23 @@ describe('login window', () => {
     await new Promise(r => setTimeout(r, 2500));
     await assert.rejects(openLoginWindow(dir, { name: 'Busy' }), /already open/);
     await first;
+  });
+
+  test('a window closed after its Claude session ended is saved at the next session start', async () => {
+    addProfile(sb.paths, 'Late', 'local', {});
+    const p = findProfile(sb.paths, 'Late')!;
+    const from = site.hits.length;
+    const { startedAt, chrome } = await startLoginWindow(p.dir, {
+      name: 'Late',
+      onReady: w => visitAndClose(w, p.dir, `${site.url}/login?user=late&to=/late/home`, () => site.hits.slice(from).some(h => h.startsWith('/late/home'))),
+    });
+    updateProfile(sb.paths, 'Late', { loginStartedAt: startedAt.toISOString() });
+    await chrome.exited;
+    assert.deepEqual(findProfile(sb.paths, 'Late')!.sites, []);
+    execFileSync(process.execPath, ['dist/src/cli.js', 'list', '--brief'], { env: sb.env });
+    const saved = findProfile(sb.paths, 'Late')!;
+    assert.deepEqual(saved.sites, [new URL(site.url).host]);
+    assert.ok(saved.lastLoginAt! >= saved.loginStartedAt!);
   });
 
   test('times out and closes the window', async () => {
@@ -215,7 +233,7 @@ describe('cast MCP server', () => {
   test('lists cast and proxied tools', async () => {
     const { tools } = await client.listTools();
     const names = tools.map(t => t.name);
-    for (const n of ['cast_list', 'cast_open', 'cast_close', 'cast_add', 'cast_login', 'cast_set_sites', 'cast_update', 'cast_remove', 'browser_click']) {
+    for (const n of ['cast_list', 'cast_open', 'cast_close', 'cast_add', 'cast_login', 'cast_login_result', 'cast_set_sites', 'cast_update', 'cast_remove', 'browser_click']) {
       assert.ok(names.includes(n), n);
     }
   });
@@ -239,6 +257,27 @@ describe('cast MCP server', () => {
 
     const closed = await client.callTool({ name: 'cast_close', arguments: { profile: 'Elon' } });
     assert.match(text(closed), /Closed/);
+  });
+
+  test('cast_add returns at once; the profile waits until the login window is closed', async () => {
+    const started = Date.now();
+    const opened = await client.callTool({ name: 'cast_add', arguments: { name: 'Ann' } });
+    assert.match(text(opened), /login window for "Ann" is open/);
+    assert.ok(Date.now() - started < 20_000);
+    const dir = findProfile(sb.paths, 'Ann')!.dir;
+    assert.ok(isRunning(dir));
+
+    assert.match(text(await client.callTool({ name: 'cast_login_result', arguments: { name: 'ann' } })), /still open/);
+    const busy = await client.callTool({ name: 'browser_snapshot', arguments: { profile: 'Ann' } });
+    assert.equal(busy.isError, true);
+    assert.match(text(busy), /login window for "Ann" is still open/);
+
+    // The human closes the window.
+    process.kill(Number(readlinkSync(join(dir, 'SingletonLock')).split('-').pop()), 'SIGINT');
+    await until(() => !isRunning(dir));
+    const result = await client.callTool({ name: 'cast_login_result', arguments: { name: 'Ann' } });
+    assert.match(text(result), /login window for "Ann" is closed/);
+    assert.ok(findProfile(sb.paths, 'Ann')!.lastLoginAt);
   });
 
   test('cast_update changes email and description without a login', async () => {

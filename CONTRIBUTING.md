@@ -5,7 +5,8 @@
 - `src/mcp.ts` — the `cast` MCP server. It exposes `cast_*` tools and all Playwright browser tools (`browser_click`, `browser_snapshot`, …) with an extra required `profile` parameter.
 - `src/chrome.ts` — starts a regular Google Chrome on a profile, restoring the last session, optionally with a DevTools port.
 - `src/gateway.ts` — for each open profile, starts Chrome with a DevTools port and attaches a [`@playwright/mcp`](https://github.com/microsoft/playwright-mcp) child to it (`--cdp-endpoint`); routes each `browser_*` call to it.
-- `src/login-window.ts` — the `/cast:add` and `/cast:login` window: the same Chrome without a DevTools port, because a port makes SSO bot checks refuse the login. Waits for the window to close and reads visited hosts from the profile's History.
+- `src/login-window.ts` — the `/cast:add` and `/cast:login` window: the same Chrome without a DevTools port, because a port makes SSO bot checks refuse the login. Starts it detached and reads visited hosts from the profile's History once it is closed.
+- `src/logins.ts` — a login is pending from `/cast:add` or `/cast:login` until the window is closed and its sites are saved.
 - `src/registry.ts`, `src/paths.ts` — profile lists in the three scopes and file locations.
 - `src/sites.ts` — tells sign-in hosts (Entra, Okta, `sso.…`) apart from the sites a person works on.
 - `src/cli.ts`, `src/format.ts` — `list --brief`, printed by the `SessionStart` hook (`hooks/hooks.json`) so Claude knows the profiles.
@@ -25,7 +26,7 @@ Chrome and Playwright MCP quirks found the hard way (Linux, Chrome 151, `@playwr
 - **Snapshots go to files.** Action tools return `[Snapshot](page-….yml)` relative to the child's cwd; the gateway runs the child with `cwd` = its output dir and makes the links absolute. Tool schemas are taken from the child, not hardcoded (`browser_click` takes `target`, not `ref`).
 - **Pass `process.env` to the Playwright child.** `StdioClientTransport` strips the environment; without `DISPLAY` Chrome silently starts headless.
 - **A busy profile.** A second Chrome on the same folder hands its URLs to the running one and exits; cast checks `SingletonLock` first and reports "already open".
-- **Long tool calls.** Claude Code moves a call running over ~120 s to the background; quitting the session cancels the login window. The skills and the instruction page say to keep the session open.
+- **The login window does not block.** A tool call running over ~120 s moves to the background, and quitting the session cancelled it, so `cast_add`/`cast_login` return as soon as Chrome runs. Chrome is started detached and outlives the session. The profile records `loginStartedAt`; the login is finished (sites read from History and saved) when the window closes, by the watcher in the same MCP process, by any later cast tool call, or by the `SessionStart` hook. `cast_login_result` reports it to Claude. `launchChrome` waits for `SingletonLock`, or a window still starting would look closed.
 - **Install.** A marketplace install runs `npm ci --ignore-scripts`; `--plugin-dir` does not, so run `npm install` yourself. `dist/src` is committed because there is no build step.
 
 ## Not done yet

@@ -21,6 +21,8 @@ export interface LaunchOptions {
   restore?: boolean;
   /** How people tell this profile's window from the others. */
   look?: WindowLook;
+  /** Keep running after cast exits (the login window outlives the Claude session). */
+  detached?: boolean;
 }
 
 export interface WindowLook {
@@ -67,7 +69,8 @@ export async function launchChrome(dir: string, opts: LaunchOptions = {}): Promi
     ...(process.env.CAST_TEST_HEADLESS === '1' ? ['--headless=new'] : []),
     ...(opts.urls ?? []),
   ];
-  const child = spawn(chromeExecutable(), args, { stdio: 'ignore' });
+  const child = spawn(chromeExecutable(), args, { stdio: 'ignore', detached: opts.detached });
+  if (opts.detached) child.unref();
   let spawnError: Error | undefined;
   let gone = false;
   const exited = new Promise<void>(resolve => {
@@ -105,6 +108,8 @@ export async function launchChrome(dir: string, opts: LaunchOptions = {}): Promi
     await chrome.close();
     throw spawnError ? notInstalled() : new ChromeError('Chrome did not start.');
   }
+  // Until the lock exists, isRunning() would report a login window that is still starting as closed.
+  for (let i = 0; i < 100 && !gone && !isRunning(dir); i++) await new Promise(r => setTimeout(r, 100));
   return chrome;
 }
 
@@ -142,15 +147,20 @@ export function applyColor(dir: string, color: string): void {
 type Section = { theme?: Record<string, unknown>; [key: string]: unknown };
 type Prefs = { browser?: Section; extensions?: Section; [key: string]: unknown };
 
-/** A second Chrome on a busy profile would hand its tabs to the running one and exit, so refuse early. */
-export function assertNotRunning(dir: string): void {
+/** Whether a Chrome runs on this profile folder, by its SingletonLock ("<host>-<pid>"). */
+export function isRunning(dir: string): boolean {
   let target: string;
-  try { target = readlinkSync(join(dir, 'SingletonLock')); } catch { return; }
+  try { target = readlinkSync(join(dir, 'SingletonLock')); } catch { return false; }
   const dash = target.lastIndexOf('-');
   const pid = Number(target.slice(dash + 1));
-  if (target.slice(0, dash) !== hostname() || !pid) return;
-  try { process.kill(pid, 0); } catch { return; }
-  throw new ChromeError('This profile is already open in another Chrome window (another Claude session or a login window). Close that window and try again.');
+  if (target.slice(0, dash) !== hostname() || !pid) return false;
+  try { process.kill(pid, 0); } catch { return false; }
+  return true;
+}
+
+/** A second Chrome on a busy profile would hand its tabs to the running one and exit, so refuse early. */
+export function assertNotRunning(dir: string): void {
+  if (isRunning(dir)) throw new ChromeError('This profile is already open in another Chrome window (another Claude session or a login window). Close that window and try again.');
 }
 
 function notInstalled(): ChromeError {

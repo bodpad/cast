@@ -44,7 +44,7 @@ Profiles and logins are kept. What changed in each version: [CHANGELOG.md](CHANG
 ## Get started
 
 1. `/cast:add Sam sam@example.com "sends messages"` — the description says who this person is in your tests; Claude picks profiles by it. Skip it and cast suggests one after login from the page you landed on (e.g. `/vendor`).
-2. A Chrome window opens. Log in everywhere Sam needs (your app, SSO, email), choose **"Stay signed in"** on MFA, then **close the window**.
+2. A Chrome window opens. Log in everywhere Sam needs (your app, SSO, email), choose **"Stay signed in"** on MFA, then **close the window** and tell Claude. You may leave Claude Code meanwhile: cast saves what you visited once the window is closed.
 3. cast saves the sites where you landed (e.g. `localhost:3000`; sign-in pages are left out). Change them any time with `/cast:edit Sam +site -site`. If you skipped the description, confirm the one Claude suggests.
 
 Now every Claude Code session in this project knows Sam. Just ask:
@@ -96,7 +96,7 @@ Uninstalling keeps profiles. To delete everything, remove both folders.
 - **No window / Chrome not found:** check `google-chrome --version`; set `CAST_CHROME` if Chrome lives elsewhere. Start Claude Code from a desktop session (`DISPLAY` set), not plain SSH.
 - **"Profile is already open":** one profile, one Chrome. Close the other window (a login window or another Claude session).
 - **SSO blocks the login:** log in only in the `/cast:add` or `/cast:login` window; it is a plain Chrome nothing controls.
-- **Login window cancelled:** keep the Claude Code session open until you close the window.
+- **Claude says the login window is still open:** close it (the window titled `… · log in · cast`), then tell Claude.
 - **Profiles missing:** local profiles belong to one project folder; use `--scope user` for profiles you need everywhere.
 
 ## Similar tools
