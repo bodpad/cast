@@ -107,8 +107,8 @@ Talk about people, not browsers. Claude picks profiles by name or description an
 
 What to expect:
 
-- **Windows are visible.** You can watch and even help (for example, solve a captcha).
-- **Profiles stay logged in** between sessions: cookies live in the profile like in your own Chrome.
+- **Windows are visible** and are regular Chrome windows: you can watch, take over (for example, solve a captcha) or close them; Claude reopens a window when it needs it again.
+- **Profiles stay logged in and keep their tabs** between sessions, like your own Chrome.
 - **Claude never logs in.** If a site shows a login page instead of the app, Claude stops and asks you to run `/cast:login <name>`.
 - **Dialogs** (`alert`, `confirm`, `prompt`) are handled by Claude.
 - Claude closes the windows when the task is done. Your logins remain.
@@ -216,8 +216,9 @@ Uninstalling keeps your profiles and logins. To delete them too, remove `~/.conf
 ### How it works
 
 - `src/mcp.ts` — the `cast` MCP server. It exposes `cast_*` tools and all Playwright browser tools (`browser_click`, `browser_snapshot`, …) with an extra required `profile` parameter.
-- `src/gateway.ts` — starts one [`@playwright/mcp`](https://github.com/microsoft/playwright-mcp) child per open profile (with that profile's Chrome user-data-dir) and routes each `browser_*` call to it.
-- `src/login-window.ts` — the login window for `/cast:add` and `/cast:login`: a plain Chrome with no automation flags (SSO bot checks reject automated browsers). It waits for the window to close and reads visited hosts from the profile's History. It uses `--password-store=basic` like Playwright, so both read the same cookies.
+- `src/chrome.ts` — starts a regular Google Chrome on a profile (restoring the last session), optionally with a DevTools port.
+- `src/gateway.ts` — for each open profile, starts Chrome with a DevTools port and a [`@playwright/mcp`](https://github.com/microsoft/playwright-mcp) child attached to it (`--cdp-endpoint`), and routes each `browser_*` call to it.
+- `src/login-window.ts` — the login window for `/cast:add` and `/cast:login`: the same Chrome but without a DevTools port, because a port makes pages see an automated browser and SSO bot checks refuse to log in. It waits for the window to close and reads visited hosts from the profile's History.
 - `src/registry.ts`, `src/paths.ts` — profile lists in the three scopes and where files go.
 - `src/cli.ts` — `list --brief`, printed by the `SessionStart` hook (`hooks/hooks.json`) so Claude knows the profiles.
 - `skills/` — the `/cast:*` commands and the `cast` skill that tells Claude how to work with profiles.

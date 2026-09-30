@@ -10,6 +10,8 @@ cast gives you several visible Chrome windows, one per person, each already logg
 - Pick profiles by name or by description ("the sender", "admin"). If unsure, call `cast_list`.
 - Open profiles without asking: `cast_open {profile, url?}`, or just call any `browser_*` tool with `profile` — the profile opens automatically.
 - Every `browser_*` tool takes a required `profile`. Calls for different profiles go to different browsers and can be interleaved freely.
+- Each window is the person's regular Chrome: it reopens the tabs from last time. Check `browser_tabs {profile, action: "list"}` and select or open the tab you need instead of assuming a blank page.
+- The user can use the window too. If they close it, the next `browser_*` call opens it again.
 - A profile marked not ready is a team slot not set up on this machine: ask the user to run `/cast:add <name>`.
 
 ## Reading pages

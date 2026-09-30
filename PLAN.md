@@ -40,7 +40,19 @@ After that Claude knows at startup: "there are browsers for Sam (sam@email.com: 
 - `XDG_CONFIG_HOME` and `XDG_DATA_HOME` are honoured. Tests override with `CAST_CONFIG_DIR` and `CAST_DATA_DIR`.
 
 ## Engine: a gateway over @playwright/mcp (chosen after a spike)
-The `cast` MCP server in Node/TS. For each open profile it starts a child `@playwright/mcp` (stdio, via the `@modelcontextprotocol/sdk` Client) with that profile folder. Claude gets **one** set of Playwright MCP browser tools, each with an added required `profile` parameter, and the call is proxied to the right child. The login window for `/cast:add` and `/cast:login` is a **plain Chrome** started by cast without any automation (see "Login window" below); it shares `--password-store=basic` with Playwright, so both read the same cookies.
+The `cast` MCP server in Node/TS. For each open profile it starts a **regular Google Chrome** itself (`src/chrome.ts`: `--user-data-dir`, `--password-store=basic`, `--restore-last-session`, `--remote-debugging-port=0`) and a child `@playwright/mcp` (stdio, via the `@modelcontextprotocol/sdk` Client) attached to it with `--cdp-endpoint` (since 0.2.0; before that Playwright MCP launched Chrome itself). Claude gets **one** set of Playwright MCP browser tools, each with an added required `profile` parameter, and the call is proxied to the right child. The login window for `/cast:add` and `/cast:login` is the same Chrome **without** a DevTools port (see "Login window" below).
+
+### Why cast launches Chrome itself (0.2.0)
+- User feedback: `/cast:login` opened an empty browser and tabs were not kept. A Playwright-launched Chrome starts with `about:blank` and Playwright's own flags (extensions, sync, background services off), so it does not feel like the person's Chrome.
+- Now the window restores the previous session and behaves like a normal Chrome; the user can take over or close it, and the next call reopens it.
+- Playwright is still needed: it turns raw CDP into Claude's tools (accessibility snapshots with refs, auto-waiting clicks, dialogs, tabs).
+- Findings:
+  - **Close order:** when Playwright MCP disconnects it closes the tabs it opened. Shut Chrome down first (`SIGINT`, saves the session), then disconnect Playwright, or the restored session is empty.
+  - **Current tab:** after attaching, Playwright's "current" tab may be a background tab; Chrome pauses rendering there and clicks time out ("waiting for element to be … stable"). The gateway calls `browser_tabs select 0` right after connecting, which brings that tab to the front.
+  - The tab order after restore varies between runs.
+  - Dialogs (`### Modal state`) work the same over `--cdp-endpoint`.
+  - `navigator.webdriver` is `true` with the DevTools port. Note: Playwright MCP's own launch (the 0.1.x engine) passes `--disable-blink-features=AutomationControlled`, which hides it. cast does not add that flag: it does not disguise automation.
+  - While Claude works, the DevTools port listens on 127.0.0.1 (see SECURITY.md); Playwright's own launch used a pipe.
 
 ### Spike results (Linux, Chrome 151, @playwright/mcp 0.0.83, 2026-09-30)
 Both candidates, a gateway over Playwright MCP and Vercel agent-browser 0.38.1, passed three tests in headed mode:
@@ -118,9 +130,9 @@ PLAN.md, README.md
 - For tests: `onReady({ endpoint?, close })`; `CAST_TEST_HEADLESS=1` enables headless plus a DevTools port, tests only.
 
 ### src/gateway.ts
-- `Gateway`: `Map<profileName, { client, transport }>`.
-- `open(profile)` starts a child (`env: {...process.env}`, flags above).
-- `close(profile)`, `closeAll()`: call `browser_close`, then `client.close()`.
+- `Gateway`: `Map<profileName, { chrome, client }>`; concurrent opens of one profile share one start.
+- `open(profile)` starts Chrome with a DevTools port (`src/chrome.ts`), then a child with `--cdp-endpoint` (`env: {...process.env}`), then selects tab 0.
+- `close(profile)`, `closeAll()`: Chrome first (`SIGINT`), then `client.close()`. If the human closes the window, the profile counts as closed and the next call reopens it.
 - `toolDefs()`: once, start a temporary child without a profile (Chrome does not start), take `listTools`, close it. Add `profile: {type:'string', description:'cast profile name, see cast_list'}` to every tool schema and to `required`. Exclude `browser_close` (use `cast_close`) and `browser_install` if present.
 - `call(profile, tool, args)`: profile not open → open it automatically. Child crashed → a clear "open it again" error. Pass the child's answer through as is (except absolute snapshot links).
 - Shutdown: on `SIGTERM`/`SIGINT` and stdin end → `closeAll()`.

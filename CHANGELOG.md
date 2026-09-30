@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.0 — 2026-09-30
+
+### Changed
+- Claude works in a regular Chrome that cast starts itself; Playwright MCP attaches to it over a local DevTools port instead of launching its own browser. Windows reopen the tabs from last time and behave like the person's normal Chrome; the user can take over or close them, and the next call reopens the window.
+- `/cast:login` also reopens the previous session's tabs.
+
+### Security
+- While Claude works in a profile, its Chrome listens on a DevTools port on 127.0.0.1 (see SECURITY.md).
+
 ## 0.1.3 — 2026-09-30
 
 ### Changed

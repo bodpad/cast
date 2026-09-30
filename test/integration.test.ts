@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, readlinkSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 import { after, before, describe, test } from 'node:test';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
@@ -166,6 +167,24 @@ describe('gateway', () => {
     await gateway.call(gp('Sam'), 'browser_navigate', { url: site.url });
     const again = await gateway.call(gp('Sam'), 'browser_snapshot', {});
     assert.match(text(again), /Hello sam/);
+  });
+
+  test('tabs from the previous session come back', async () => {
+    await gateway.call(gp('Sam'), 'browser_navigate', { url: `${site.url}/?tab=kept` });
+    await gateway.close('Sam');
+    const tabs = await gateway.call(gp('Sam'), 'browser_tabs', { action: 'list' });
+    assert.match(text(tabs), /\?tab=kept/);
+  });
+
+  test('a window closed by the human is reopened on the next call', async () => {
+    await gateway.call(gp('Elon'), 'browser_navigate', { url: site.url });
+    const pid = Number(readlinkSync(join(findProfile(sb.paths, 'Elon')!.dir, 'SingletonLock')).split('-').pop());
+    process.kill(pid, 'SIGINT');
+    for (let i = 0; i < 100 && gateway.isOpen('Elon'); i++) await new Promise(r => setTimeout(r, 100));
+    assert.equal(gateway.isOpen('Elon'), false);
+    await gateway.call(gp('Elon'), 'browser_navigate', { url: site.url });
+    const snap = await gateway.call(gp('Elon'), 'browser_snapshot', {});
+    assert.match(text(snap), /Hello elon/);
   });
 
   test('browser_close is not proxied', async () => {

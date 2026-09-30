@@ -3,6 +3,7 @@ import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import type { CallToolResult, Tool } from '@modelcontextprotocol/sdk/types.js';
+import { type Chrome, launchChrome } from './chrome.js';
 import { ensurePrivateDir } from './paths.js';
 import { VERSION } from './version.js';
 
@@ -25,46 +26,76 @@ export interface GatewayProfile {
 
 interface Child {
   profile: GatewayProfile;
+  chrome: Chrome;
   client: Client;
-  transport: StdioClientTransport;
-  /** Set when the child process went away without cast closing it. */
+  /** Set when Chrome or the Playwright MCP child went away without cast closing them. */
   exited?: string;
 }
 
 export class GatewayError extends Error {}
 
-/** One @playwright/mcp child per open profile; browser_* calls are routed by profile name. */
+/**
+ * One regular Chrome plus one @playwright/mcp child per open profile; browser_* calls are routed by
+ * profile name. cast starts Chrome itself (restoring the previous tabs) and Playwright MCP attaches
+ * to it over the DevTools port, so the window behaves like the person's normal Chrome.
+ */
 export class Gateway {
   private children = new Map<string, Child>();
+  private opening = new Map<string, Promise<Child>>();
   private tools?: Promise<Tool[]>;
 
   isOpen(name: string): boolean {
-    return this.children.has(name.toLowerCase());
+    const child = this.children.get(name.toLowerCase());
+    return !!child && !child.exited;
   }
 
   openNames(): string[] {
-    return [...this.children.values()].map(c => c.profile.name);
+    return [...this.children.values()].filter(c => !c.exited).map(c => c.profile.name);
   }
 
   async open(profile: GatewayProfile): Promise<void> {
+    await this.child(profile);
+  }
+
+  private async child(profile: GatewayProfile): Promise<Child> {
     const key = profile.name.toLowerCase();
     const current = this.children.get(key);
-    if (current && !current.exited) return;
-    if (current) this.children.delete(key);
+    if (current && !current.exited) return current;
+    if (current) await this.close(current.profile.name);
+    let pending = this.opening.get(key);
+    if (!pending) {
+      pending = this.start(profile).finally(() => this.opening.delete(key));
+      this.opening.set(key, pending);
+    }
+    return pending;
+  }
 
-    ensurePrivateDir(profile.dir);
-    const client = new Client({ name: 'cast', version: VERSION });
+  private async start(profile: GatewayProfile): Promise<Child> {
     ensurePrivateDir(profile.outputDir);
-    const transport = spawnChild([
-      '--user-data-dir', profile.dir,
-      '--output-dir', profile.outputDir,
-    ], profile.outputDir);
-    const child: Child = { profile, client, transport };
+    const chrome = await launchChrome(profile.dir, { restore: true, debugPort: true });
+    const client = new Client({ name: 'cast', version: VERSION });
+    const child: Child = { profile, chrome, client };
+    const transport = spawnChild(['--cdp-endpoint', chrome.endpoint!, '--output-dir', profile.outputDir], profile.outputDir);
     transport.onclose = () => {
-      child.exited ??= 'the browser process exited';
+      child.exited ??= 'the Playwright MCP process exited';
+      chrome.close().catch(() => {});
     };
-    await client.connect(transport);
-    this.children.set(key, child);
+    chrome.exited.then(() => {
+      // Usually the human closed the window; the next call opens it again.
+      child.exited ??= 'the Chrome window was closed';
+      client.close().catch(() => {});
+    });
+    try {
+      await client.connect(transport);
+      // Playwright's "current" tab may be a background one, where Chrome pauses rendering and actions
+      // hang. Selecting it brings it to the front.
+      await client.callTool({ name: 'browser_tabs', arguments: { action: 'select', index: 0 } });
+    } catch (e) {
+      await chrome.close();
+      throw e;
+    }
+    this.children.set(profile.name.toLowerCase(), child);
+    return child;
   }
 
   async close(name: string): Promise<boolean> {
@@ -72,12 +103,12 @@ export class Gateway {
     const child = this.children.get(key);
     if (!child) return false;
     this.children.delete(key);
-    if (!child.exited) {
-      child.exited = 'closed by cast';
-      await child.client.callTool({ name: 'browser_close', arguments: {} }).catch(() => {});
-    }
+    const wasOpen = !child.exited;
+    child.exited ??= 'closed by cast';
+    // Chrome first: on disconnect Playwright closes the tabs it opened, and the saved session would be empty.
+    await child.chrome.close();
     await child.client.close().catch(() => {});
-    return true;
+    return wasOpen;
   }
 
   async closeAll(): Promise<void> {
@@ -103,15 +134,13 @@ export class Gateway {
   /** Opens the profile if needed and forwards the call; the child's answer is returned as is. */
   async call(profile: GatewayProfile, tool: string, args: Record<string, unknown>): Promise<CallToolResult> {
     if (HIDDEN_TOOLS.has(tool)) throw new GatewayError(`${tool} is not available through cast; use cast_close.`);
-    await this.open(profile);
-    const child = this.children.get(profile.name.toLowerCase())!;
+    const child = await this.child(profile);
     try {
       const result = await child.client.callTool({ name: tool, arguments: args }) as CallToolResult;
-      return withHints(profile.name, absoluteLinks(result, profile.outputDir));
+      return absoluteLinks(result, profile.outputDir);
     } catch (e) {
       if (child.exited) {
-        this.children.delete(profile.name.toLowerCase());
-        throw new GatewayError(`Browser for "${profile.name}" stopped (${child.exited}). Call cast_open ${profile.name} to start it again.`);
+        throw new GatewayError(`Browser for "${profile.name}" stopped (${child.exited}). Call the tool again to reopen it.`);
       }
       throw e;
     }
@@ -120,8 +149,7 @@ export class Gateway {
 
 function spawnChild(extraArgs: string[], cwd?: string): StdioClientTransport {
   const args = [PLAYWRIGHT_MCP_CLI, '--browser', 'chrome', ...extraArgs];
-  if (process.env.CAST_TEST_HEADLESS === '1') args.push('--headless');
-  // The SDK's default env drops DISPLAY and Chrome would silently start headless.
+  // The SDK's default env is reduced; pass everything through (DISPLAY, proxies…).
   return new StdioClientTransport({ command: process.execPath, args, env: { ...process.env } as Record<string, string>, cwd, stderr: 'ignore' });
 }
 
@@ -151,19 +179,5 @@ function absoluteLinks(result: CallToolResult, cwd: string): CallToolResult {
       text: c.text.replace(/\]\(([^)\s]+)\)/g, (m, link: string) =>
         /^[a-z][a-z0-9+.-]*:/i.test(link) || isAbsolute(link) ? m : `](${resolve(cwd, link)})`),
     }),
-  };
-}
-
-/** Chrome refuses a user-data-dir that another Chrome holds; say what that means for cast. */
-function withHints(name: string, result: CallToolResult): CallToolResult {
-  if (!result.isError) return result;
-  const text = result.content.map(c => (c.type === 'text' ? c.text : '')).join('\n');
-  if (!/ProcessSingleton|already in use|user data directory is already/i.test(text)) return result;
-  return {
-    ...result,
-    content: [
-      ...result.content,
-      { type: 'text', text: `cast: profile "${name}" is already open in another Chrome (maybe another Claude session or a /cast:login window). Close that window and retry.` },
-    ],
   };
 }
