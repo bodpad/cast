@@ -3,12 +3,13 @@ import { rmSync } from 'node:fs';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { type CallToolResult, CallToolRequestSchema, ListToolsRequestSchema, type Tool } from '@modelcontextprotocol/sdk/types.js';
+import { windowLook } from './format.js';
 import { Gateway, type GatewayProfile, PROFILE_PARAM } from './gateway.js';
 import { type LoginResult, openLoginWindow, normalizeSite } from './login-window.js';
 import { type CastPaths, type Scope, outputDir, resolvePaths } from './paths.js';
 import { VERSION } from './version.js';
 import {
-  type Profile, RegistryError, addProfile, editProfile, findProfile, loadProfiles, removeProfile, requireReady, updateProfile,
+  type Profile, RegistryError, addProfile, editProfile, ensureColor, findProfile, loadProfiles, removeProfile, updateProfile,
 } from './registry.js';
 
 const HUMAN_ONLY = 'Call ONLY when the user explicitly asked for it (/cast:add, /cast:login): a human must log in in the window. Never call it on your own because a session expired.';
@@ -99,7 +100,7 @@ export function createServer(paths: CastPaths, gateway: Gateway): Server {
       if (name.startsWith('cast_')) return await castTool(paths, gateway, name, args, progress);
       const { profile, ...rest } = args;
       if (typeof profile !== 'string') return fail('Missing "profile": pass the cast profile name (see cast_list).');
-      return await gateway.call(gatewayProfile(paths, requireReady(paths, profile)), name, rest);
+      return await gateway.call(gatewayProfile(paths, ensureColor(paths, profile)), name, rest);
     } catch (e) {
       return fail((e as Error).message);
     }
@@ -120,7 +121,7 @@ async function castTool(paths: CastPaths, gateway: Gateway, tool: string, args: 
       return ok(profiles.length ? JSON.stringify(profiles, null, 2) : 'No cast profiles yet. The user can create one with /cast:add <name>.');
     }
     case 'cast_open': {
-      const p = requireReady(paths, str(args, 'profile'));
+      const p = ensureColor(paths, str(args, 'profile'));
       const gp = gatewayProfile(paths, p);
       // Playwright MCP starts Chrome lazily, so make a call that shows the window.
       const url = optStr(args, 'url');
@@ -148,7 +149,7 @@ async function castTool(paths: CastPaths, gateway: Gateway, tool: string, args: 
       }
     }
     case 'cast_login': {
-      const p = requireReady(paths, str(args, 'name'));
+      const p = ensureColor(paths, str(args, 'name'));
       const result = await loginWindow(gateway, p, progress);
       return ok(saveLogin(paths, p, result));
     }
@@ -186,7 +187,7 @@ async function loginWindow(gateway: Gateway, p: Profile, progress: Progress) {
   await gateway.close(p.name);
   const heartbeat = setInterval(progress, 20_000);
   try {
-    return await openLoginWindow(p.dir, { name: p.name, sites: p.sites });
+    return await openLoginWindow(p.dir, { name: p.name, sites: p.sites, look: windowLook(p, 'log in') });
   } finally {
     clearInterval(heartbeat);
   }
@@ -224,7 +225,7 @@ function loginReport(p: Profile, r: LoginResult, added: string[]): string {
 }
 
 export function gatewayProfile(paths: CastPaths, p: Profile): GatewayProfile {
-  return { name: p.name, dir: p.dir, outputDir: outputDir(paths, p.name) };
+  return { name: p.name, dir: p.dir, outputDir: outputDir(paths, p.name), look: windowLook(p) };
 }
 
 function str(args: Args, key: string): string {

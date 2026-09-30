@@ -1,5 +1,5 @@
 import { type ChildProcess, spawn } from 'node:child_process';
-import { existsSync, readFileSync, readlinkSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, readlinkSync, rmSync, writeFileSync } from 'node:fs';
 import { hostname } from 'node:os';
 import { join } from 'node:path';
 import { ensurePrivateDir } from './paths.js';
@@ -19,6 +19,15 @@ export interface LaunchOptions {
   debugPort?: boolean;
   /** Reopen the tabs of the previous session. */
   restore?: boolean;
+  /** How people tell this profile's window from the others. */
+  look?: WindowLook;
+}
+
+export interface WindowLook {
+  /** Shown in the title bar, the taskbar and Alt+Tab instead of the page title. */
+  title: string;
+  /** Theme color, e.g. "#1e88e5". */
+  color?: string;
 }
 
 export interface Chrome {
@@ -40,6 +49,7 @@ export async function launchChrome(dir: string, opts: LaunchOptions = {}): Promi
   assertNotRunning(dir);
   const portFile = join(dir, 'DevToolsActivePort');
   rmSync(portFile, { force: true });
+  if (opts.look?.color) applyColor(dir, opts.look.color);
 
   const args = [
     `--user-data-dir=${dir}`,
@@ -49,7 +59,9 @@ export async function launchChrome(dir: string, opts: LaunchOptions = {}): Promi
     // Claude acts on the user's behalf in the user's own session. Same default as Playwright MCP:
     // without it the DevTools port makes pages see navigator.webdriver = true. Nothing else is masked.
     '--disable-blink-features=AutomationControlled',
-    ...(opts.restore ? ['--restore-last-session'] : []),
+    // Only when there is a session: on a new profile the flag opens a window that ignores --window-name.
+    ...(opts.restore && existsSync(join(dir, 'Default', 'Sessions')) ? ['--restore-last-session'] : []),
+    ...(opts.look ? [`--window-name=${opts.look.title}`] : []),
     // Background tabs keep rendering, so Claude can act in any tab (as Playwright's own launch does).
     ...(opts.debugPort ? ['--remote-debugging-port=0', ...KEEP_BACKGROUND_TABS_ALIVE] : []),
     ...(process.env.CAST_TEST_HEADLESS === '1' ? ['--headless=new'] : []),
@@ -100,6 +112,35 @@ export function chromeExecutable(): string {
   if (process.env.CAST_CHROME) return process.env.CAST_CHROME;
   return existsSync('/opt/google/chrome/chrome') ? '/opt/google/chrome/chrome' : 'google-chrome';
 }
+
+/**
+ * Colors the window through the profile's own preferences, as "Customize Chrome" would, before Chrome
+ * reads them. Pages cannot see any of it. Found by trying on Chrome 151 (Linux):
+ * - a fresh profile follows the GTK theme, which ignores the color: system_theme 0 is Chrome's own theme;
+ * - color_variant2 3 ("vibrant") keeps the hue recognizable in dark mode;
+ * - custom_chrome_frame false shows the system title bar, where --window-name is visible.
+ */
+export function applyColor(dir: string, color: string): void {
+  if (!/^#[0-9a-f]{6}$/i.test(color)) return;
+  const file = join(dir, 'Default', 'Preferences');
+  let prefs: Prefs = {};
+  if (existsSync(file)) {
+    try { prefs = JSON.parse(readFileSync(file, 'utf8')); } catch { return; } // Leave a file we cannot read to Chrome.
+  } else {
+    mkdirSync(join(dir, 'Default'), { recursive: true, mode: 0o700 });
+  }
+  const argb = 0xff000000 | parseInt(color.slice(1), 16); // A signed 32-bit ARGB, as Chrome stores it.
+  prefs.extensions = { ...prefs.extensions, theme: { ...prefs.extensions?.theme, system_theme: 0 } };
+  prefs.browser = {
+    ...prefs.browser,
+    custom_chrome_frame: false,
+    theme: { ...prefs.browser?.theme, user_color2: argb, color_variant2: 3 },
+  };
+  writeFileSync(file, JSON.stringify(prefs), { mode: 0o600 });
+}
+
+type Section = { theme?: Record<string, unknown>; [key: string]: unknown };
+type Prefs = { browser?: Section; extensions?: Section; [key: string]: unknown };
 
 /** A second Chrome on a busy profile would hand its tabs to the running one and exit, so refuse early. */
 export function assertNotRunning(dir: string): void {

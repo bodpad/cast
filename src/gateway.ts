@@ -3,7 +3,7 @@ import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import type { CallToolResult, Tool } from '@modelcontextprotocol/sdk/types.js';
-import { type Chrome, launchChrome } from './chrome.js';
+import { type Chrome, type WindowLook, launchChrome } from './chrome.js';
 import { INSTRUCTIONS_FILE } from './login-window.js';
 import { ensurePrivateDir } from './paths.js';
 import { VERSION } from './version.js';
@@ -23,6 +23,7 @@ export interface GatewayProfile {
   dir: string;
   /** Where Playwright MCP writes snapshots and screenshots. */
   outputDir: string;
+  look?: WindowLook;
 }
 
 interface Child {
@@ -73,7 +74,7 @@ export class Gateway {
 
   private async start(profile: GatewayProfile): Promise<Child> {
     ensurePrivateDir(profile.outputDir);
-    const chrome = await launchChrome(profile.dir, { restore: true, debugPort: true });
+    const chrome = await launchChrome(profile.dir, { restore: true, debugPort: true, look: profile.look });
     const client = new Client({ name: 'cast', version: VERSION });
     const child: Child = { profile, chrome, client };
     const transport = spawnChild(['--cdp-endpoint', chrome.endpoint!, '--output-dir', profile.outputDir], profile.outputDir);
