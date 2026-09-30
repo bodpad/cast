@@ -1,6 +1,6 @@
 {
   "name": "cast",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Several logged-in browser users for Claude: one persistent Chrome profile per person (Sam writes, Elon receives).",
   "author": { "name": "bodpad" },
   "repository": "https://github.com/bodpad/cast",

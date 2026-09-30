@@ -128,13 +128,13 @@ describe('registry', () => {
   });
 
   test('edit sets and clears email and description, keeping the rest', () => {
-    addProfile(sb.paths, 'Ali', 'local', { email: 'a@x.com' });
-    updateProfile(sb.paths, 'Ali', { sites: ['app.example.com'] });
-    const p = editProfile(sb.paths, 'ali', { description: '  vendor, Insygna org ' });
-    assert.equal(p.description, 'vendor, Insygna org');
+    addProfile(sb.paths, 'Alex', 'local', { email: 'a@x.com' });
+    updateProfile(sb.paths, 'Alex', { sites: ['app.example.com'] });
+    const p = editProfile(sb.paths, 'alex', { description: '  vendor, Acme org ' });
+    assert.equal(p.description, 'vendor, Acme org');
     assert.equal(p.email, 'a@x.com');
     assert.deepEqual(p.sites, ['app.example.com']);
-    assert.equal(editProfile(sb.paths, 'Ali', { email: '' }).email, undefined);
+    assert.equal(editProfile(sb.paths, 'Alex', { email: '' }).email, undefined);
     assert.throws(() => editProfile(sb.paths, 'Nobody', { description: 'x' }), /No profile/);
   });
 
@@ -171,7 +171,7 @@ describe('format', () => {
     for (const h of ['login.microsoftonline.com', 'sso.godaddy.com', 'accounts.google.com', 'acme.okta.com', 'login.live.com']) {
       assert.equal(isSignInHost(h), true, h);
     }
-    for (const h of ['teams.microsoft.com', 'outlook.office.com', 'localhost:3000', 'platform-dev.example.com']) {
+    for (const h of ['teams.microsoft.com', 'outlook.office.com', 'localhost:3000', 'app.example.com']) {
       assert.equal(isSignInHost(h), false, h);
     }
     assert.deepEqual(

@@ -70,6 +70,7 @@ Names: latin letters, digits, `-`, `_`.
 - **Logins and tabs are kept** between sessions.
 - **Claude picks people by description.** It never guesses a role from a profile name. If no profile or several fit ("the vendor"), it asks you once and saves your answer. Change a description any time with `/cast:edit <name>`.
 - **Claude never logs in.** When a session expires, it asks you to run `/cast:login <name>`.
+- **cast reads the browser history of its own profiles, nothing else.** When a login window closes, cast reads that profile's Chrome history for the visits made while it was open: URLs and page titles only, no cookies or page content, and never your personal Chrome profile. It shows Claude the hosts and the last page on each site (without the query string) to suggest sites and a description, and saves only what you confirm.
 - **Claude sees what the person sees, email included.** Prefer test accounts. cast never stores passwords or shows cookies. Details: [SECURITY.md](SECURITY.md).
 
 ## Scopes and teams

@@ -8,7 +8,7 @@ cast gives you several visible Chrome windows, one per person, each already logg
 
 ## Choosing and opening profiles
 - Pick a profile by the name the user says ("Sam") or by its description, which says who the person is in tests ("the sender", "vendor", "PM"). If unsure, call `cast_list`.
-- Do not guess a role from a profile name, email or sites: `ali-insygna-ia` does not tell you whether this is a vendor or an admin.
+- Do not guess a role from a profile name, email or sites: `alex-qa` does not tell you whether this is a vendor or an admin.
 - If the task names a role or a person and no profile's description matches, or several do, ask the user once which profile it is. Then save their answer in that profile's description with `cast_update`, so nobody has to ask again. Save only what the user said, never your guess.
 - To change a profile's email or description later, the user can run `/cast:edit <name>`.
 - Open profiles without asking: `cast_open {profile, url?}`, or just call any `browser_*` tool with `profile` — the profile opens automatically.
