@@ -1,3 +1,4 @@
+import type { WindowLook } from './chrome.js';
 import type { Profile } from './registry.js';
 
 /** Compact block for the SessionStart hook; empty when there are no profiles. */
@@ -15,4 +16,10 @@ export function briefList(profiles: Profile[]): string {
     return line;
   });
   return ['cast: browser users available (open with cast_open / browser_* tools with profile=<name>):', ...lines].join('\n');
+}
+
+/** "Sam (vendor, Acme org) · log in · cast": the window title people see in the title bar and taskbar. */
+export function windowLook(p: Profile, what?: string): WindowLook {
+  const d = p.description && p.description.length > 40 ? `${p.description.slice(0, 39)}…` : p.description;
+  return { title: [d ? `${p.name} (${d})` : p.name, what, 'cast'].filter(Boolean).join(' · '), color: p.color };
 }

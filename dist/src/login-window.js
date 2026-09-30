@@ -26,6 +26,7 @@ export async function openLoginWindow(dir, opts) {
     const startedUs = Date.now() * 1000 + CHROME_EPOCH_OFFSET_US - 1_000_000;
     const chrome = await launchChrome(dir, {
         restore: true,
+        look: opts.look,
         // Tests play the human over a DevTools port; real login windows never get one.
         debugPort: test && !!opts.onReady,
         urls: [pathToFileURL(instructions).href, ...(opts.sites ?? []).map(siteUrl)],

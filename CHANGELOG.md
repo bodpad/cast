@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.5.0 — 2026-09-30
+
+### Added
+- Each profile's Chrome window has its own theme color and shows the person in the title bar, e.g. `Sam (sends messages) · cast` (`· log in ·` in the login window). New profiles get a color no other profile uses; existing ones get one the next time they open.
+
 ## 0.3.1 — 2026-09-30
 
 ### Changed

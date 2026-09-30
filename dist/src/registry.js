@@ -10,10 +10,14 @@ const personalEntry = z.object({
     sites: z.array(z.string()).default([]),
     createdAt: z.string().optional(),
     lastLoginAt: z.string().optional(),
+    /** Window color, e.g. "#1e88e5", so people tell the windows apart. */
+    color: z.string().optional(),
 });
 const slotEntry = z.object({ description: z.string().optional() });
 const personalFile = z.object({ version: z.literal(1).default(1), profiles: z.record(z.string(), personalEntry).default({}) });
 const projectFile = z.object({ version: z.literal(1).default(1), profiles: z.record(z.string(), slotEntry).default({}) });
+/** Distinct hues first: two or three profiles open side by side get clearly different windows. */
+export const PROFILE_COLORS = ['#1e88e5', '#e53935', '#43a047', '#8e24aa', '#fb8c00', '#00897b', '#d81b60', '#fdd835'];
 export class RegistryError extends Error {
 }
 export function validateName(name) {
@@ -29,7 +33,7 @@ export function loadProfiles(paths) {
     const byKey = new Map();
     const personal = (scope, name, e) => ({
         name, scope, email: e.email, description: e.description, sites: e.sites, ready: true,
-        dir: profileDir(paths, scope, name), createdAt: e.createdAt, lastLoginAt: e.lastLoginAt,
+        dir: profileDir(paths, scope, name), createdAt: e.createdAt, lastLoginAt: e.lastLoginAt, color: e.color,
     });
     // Lowest precedence first; later writes win: user < project < local.
     for (const [name, e] of Object.entries(user.profiles))
@@ -69,7 +73,9 @@ export function addProfile(paths, name, scope, input) {
     if (existing && !existing.ready)
         scope = 'project';
     const now = new Date().toISOString();
-    const entry = { email: input.email || undefined, description: input.description || undefined, sites: [], createdAt: now };
+    const entry = {
+        email: input.email || undefined, description: input.description || undefined, sites: [], createdAt: now, color: nextColor(paths),
+    };
     if (scope === 'project') {
         const project = readProject(paths);
         const slotName = findKey(project.profiles, name) ?? name;
@@ -93,6 +99,17 @@ export function updateProfile(paths, name, patch) {
         f.profiles[key] = { ...f.profiles[key], ...stripUndefined(patch) };
     });
     return findProfile(paths, name);
+}
+/** Gives a profile made before colors existed its own window color. */
+export function ensureColor(paths, name) {
+    const p = requireReady(paths, name);
+    return p.color ? p : updateProfile(paths, name, { color: nextColor(paths) });
+}
+/** The first color no other profile uses; after that, the least used one. */
+function nextColor(paths) {
+    const used = loadProfiles(paths).map(p => p.color);
+    const count = (c) => used.filter(u => u === c).length;
+    return PROFILE_COLORS.reduce((best, c) => count(c) < count(best) ? c : best);
 }
 /**
  * Sets the email and description the user gave; an empty string clears the field. For a project

@@ -67,6 +67,7 @@ Names: latin letters, digits, `-`, `_`.
 ## Good to know
 
 - **Windows are regular, visible Chrome.** Watch, take over or close them; Claude reopens a window when needed.
+- **Each person's window has its own color** and their name in the title bar (`Sam (sends messages) · cast`), so two windows side by side are easy to tell apart. cast sets the theme color each time it opens the window.
 - **Logins and tabs are kept** between sessions.
 - **Claude picks people by description.** It never guesses a role from a profile name. If no profile or several fit ("the vendor"), it asks you once and saves your answer. Change a description any time with `/cast:edit <name>`.
 - **Claude never logs in.** When a session expires, it asks you to run `/cast:login <name>`.

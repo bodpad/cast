@@ -2,12 +2,13 @@ import assert from 'node:assert/strict';
 import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, test } from 'node:test';
-import { briefList } from '../src/format.js';
+import { applyColor } from '../src/chrome.js';
+import { briefList, windowLook } from '../src/format.js';
 import { normalizeSite, pageUrl } from '../src/login-window.js';
 import { classifyHosts, isSignInHost } from '../src/sites.js';
 import { ensurePrivateDir, listFile, projectIdFor, resolvePaths } from '../src/paths.js';
 import {
-  RegistryError, addProfile, editProfile, findProfile, loadProfiles, removeProfile, updateProfile, validateName,
+  PROFILE_COLORS, RegistryError, addProfile, editProfile, ensureColor, findProfile, loadProfiles, removeProfile, updateProfile, validateName,
 } from '../src/registry.js';
 import { type Sandbox, sandbox } from './helpers.js';
 
@@ -146,10 +147,61 @@ describe('registry', () => {
     assert.equal(editProfile(sb.paths, 'sender', { description: '' }).description, 'writes messages');
   });
 
+  test('each new profile gets a color no other profile uses', () => {
+    const colors = ['A', 'B', 'C'].map(n => addProfile(sb.paths, n, 'local', {}).color);
+    assert.deepEqual(colors, PROFILE_COLORS.slice(0, 3));
+    removeProfile(sb.paths, 'B');
+    assert.equal(addProfile(sb.paths, 'D', 'user', {}).color, PROFILE_COLORS[1]);
+  });
+
+  test('an old profile without a color gets one once', () => {
+    addProfile(sb.paths, 'A', 'local', {});
+    updateProfile(sb.paths, 'A', { color: undefined });
+    const file = listFile(sb.paths, 'local');
+    writeFileSync(file, readFileSync(file, 'utf8').replace(/\n\s*color: .*/, ''));
+    assert.equal(findProfile(sb.paths, 'A')!.color, undefined);
+    const color = ensureColor(sb.paths, 'A').color;
+    assert.equal(color, PROFILE_COLORS[0]);
+    assert.equal(ensureColor(sb.paths, 'A').color, color);
+  });
+
   test('reports broken yaml as RegistryError', () => {
     mkdirSync(join(sb.paths.configDir), { recursive: true });
     writeFileSync(listFile(sb.paths, 'user'), 'profiles: [1, 2');
     assert.throws(() => loadProfiles(sb.paths), RegistryError);
+  });
+});
+
+describe('window look', () => {
+  test('title names the person and the window', () => {
+    addProfile(sb.paths, 'Sam', 'local', { description: 'sends messages' });
+    const p = findProfile(sb.paths, 'Sam')!;
+    assert.deepEqual(windowLook(p), { title: 'Sam (sends messages) · cast', color: PROFILE_COLORS[0] });
+    assert.equal(windowLook(p, 'log in').title, 'Sam (sends messages) · log in · cast');
+    assert.equal(windowLook({ ...p, description: 'x'.repeat(60) }).title, `Sam (${'x'.repeat(39)}…) · cast`);
+  });
+
+  test('the color goes into Chrome preferences, keeping the rest', () => {
+    const dir = join(sb.root, 'chrome');
+    applyColor(dir, '#1e88e5');
+    const file = join(dir, 'Default', 'Preferences');
+    const fresh = JSON.parse(readFileSync(file, 'utf8'));
+    assert.equal(fresh.browser.theme.user_color2, 0xff1e88e5 | 0);
+    assert.equal(fresh.browser.theme.color_variant2, 3);
+    assert.equal(fresh.browser.custom_chrome_frame, false);
+    assert.equal(fresh.extensions.theme.system_theme, 0);
+
+    writeFileSync(file, JSON.stringify({ browser: { theme: { color_scheme2: 2 }, has_seen_welcome_page: true }, profile: { name: 'x' } }));
+    applyColor(dir, '#e53935');
+    const kept = JSON.parse(readFileSync(file, 'utf8'));
+    assert.equal(kept.browser.theme.color_scheme2, 2);
+    assert.equal(kept.browser.has_seen_welcome_page, true);
+    assert.equal(kept.profile.name, 'x');
+    assert.equal(kept.browser.theme.user_color2, 0xffe53935 | 0);
+
+    writeFileSync(file, '{broken');
+    applyColor(dir, '#43a047');
+    assert.equal(readFileSync(file, 'utf8'), '{broken', 'a file Chrome may still repair is left alone');
   });
 });
 

@@ -12,6 +12,8 @@ const personalEntry = z.object({
   sites: z.array(z.string()).default([]),
   createdAt: z.string().optional(),
   lastLoginAt: z.string().optional(),
+  /** Window color, e.g. "#1e88e5", so people tell the windows apart. */
+  color: z.string().optional(),
 });
 const slotEntry = z.object({ description: z.string().optional() });
 
@@ -34,7 +36,11 @@ export interface Profile {
   dir: string;
   createdAt?: string;
   lastLoginAt?: string;
+  color?: string;
 }
+
+/** Distinct hues first: two or three profiles open side by side get clearly different windows. */
+export const PROFILE_COLORS = ['#1e88e5', '#e53935', '#43a047', '#8e24aa', '#fb8c00', '#00897b', '#d81b60', '#fdd835'];
 
 export class RegistryError extends Error {}
 
@@ -53,7 +59,7 @@ export function loadProfiles(paths: CastPaths): Profile[] {
 
   const personal = (scope: Scope, name: string, e: PersonalEntry): Profile => ({
     name, scope, email: e.email, description: e.description, sites: e.sites, ready: true,
-    dir: profileDir(paths, scope, name), createdAt: e.createdAt, lastLoginAt: e.lastLoginAt,
+    dir: profileDir(paths, scope, name), createdAt: e.createdAt, lastLoginAt: e.lastLoginAt, color: e.color,
   });
 
   // Lowest precedence first; later writes win: user < project < local.
@@ -98,7 +104,9 @@ export function addProfile(paths: CastPaths, name: string, scope: Scope, input: 
   }
   if (existing && !existing.ready) scope = 'project';
   const now = new Date().toISOString();
-  const entry: PersonalEntry = { email: input.email || undefined, description: input.description || undefined, sites: [], createdAt: now };
+  const entry: PersonalEntry = {
+    email: input.email || undefined, description: input.description || undefined, sites: [], createdAt: now, color: nextColor(paths),
+  };
 
   if (scope === 'project') {
     const project = readProject(paths);
@@ -122,6 +130,19 @@ export function updateProfile(paths: CastPaths, name: string, patch: Partial<Per
     f.profiles[key] = { ...f.profiles[key], ...stripUndefined(patch) };
   });
   return findProfile(paths, name)!;
+}
+
+/** Gives a profile made before colors existed its own window color. */
+export function ensureColor(paths: CastPaths, name: string): Profile {
+  const p = requireReady(paths, name);
+  return p.color ? p : updateProfile(paths, name, { color: nextColor(paths) });
+}
+
+/** The first color no other profile uses; after that, the least used one. */
+function nextColor(paths: CastPaths): string {
+  const used = loadProfiles(paths).map(p => p.color);
+  const count = (c: string) => used.filter(u => u === c).length;
+  return PROFILE_COLORS.reduce((best, c) => count(c) < count(best) ? c : best);
 }
 
 /**
