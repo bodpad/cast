@@ -17,13 +17,17 @@ Works with corporate SSO (Microsoft Entra, Okta, Google), because you log in you
 
 Needs Linux with a desktop, Google Chrome and Node.js 20+.
 
+Start Claude Code (`claude`) and type these at its prompt. They are Claude Code commands, not shell commands:
+
 ```
 /plugin marketplace add bodpad/cast
 /plugin install cast@bodpad
 /reload-plugins
 ```
 
-To update: `/plugin marketplace update bodpad`, then `/plugin update cast@bodpad`.
+From a terminal instead: `claude plugin marketplace add bodpad/cast`, then `claude plugin install cast@bodpad`, then start `claude`.
+
+To update, in a Claude Code session: `/plugin marketplace update bodpad`, then `/plugin update cast@bodpad`.
 
 ## Get started
 
@@ -52,6 +56,7 @@ Names: latin letters, digits, `-`, `_`.
 
 - **Windows are regular, visible Chrome.** Watch, take over or close them; Claude reopens a window when needed.
 - **Logins and tabs are kept** between sessions.
+- **Claude picks people by description.** It never guesses a role from a profile name. If no profile or several fit ("the vendor"), it asks you once and saves your answer. Change a description any time with `/cast:edit <name>`.
 - **Claude never logs in.** When a session expires, it asks you to run `/cast:login <name>`.
 - **Claude sees what the person sees, email included.** Prefer test accounts. cast never stores passwords or shows cookies. Details: [SECURITY.md](SECURITY.md).
 
