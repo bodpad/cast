@@ -3,13 +3,17 @@ import { existsSync, readFileSync, statSync } from 'node:fs';
 import { after, before, describe, test } from 'node:test';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
+import { chromium } from 'playwright-core';
 import { Gateway } from '../src/gateway.js';
-import { openLoginWindow } from '../src/login-window.js';
+import { spawn } from 'node:child_process';
+import { type LoginWindow, openLoginWindow } from '../src/login-window.js';
 import { outputDir } from '../src/paths.js';
 import { addProfile, findProfile } from '../src/registry.js';
 import { type Sandbox, type TestSite, sandbox, startSite, text } from './helpers.js';
 
-process.env.CAST_TEST_HEADLESS = '1';
+// CAST_TEST_HEADED=1 shows the windows (checks what headless cannot, e.g. navigator.webdriver).
+const headed = process.env.CAST_TEST_HEADED === '1';
+if (!headed) process.env.CAST_TEST_HEADLESS = '1';
 
 let sb: Sandbox;
 let site: TestSite;
@@ -28,12 +32,36 @@ async function humanLogin(name: string, user: string) {
   const p = findProfile(sb.paths, name)!;
   return openLoginWindow(p.dir, {
     name,
-    onContext: async context => {
-      const page = await context.newPage();
-      await page.goto(`${site.url}/login?user=${user}`);
-      await context.close();
-    },
+    onReady: w => visitAndClose(w, p.dir, `${site.url}/login?user=${user}`, () => site.hits.includes(`/login?user=${user}`)),
   });
+}
+
+/**
+ * Plays the human. Headless: drive the tab over the test-only DevTools port. Headed: the window has no
+ * port, so open the URL like a person would (a second `chrome` call hands it to the running window).
+ */
+async function visitAndClose(w: LoginWindow, dir: string, url: string, done: () => boolean) {
+  if (w.endpoint) {
+    const browser = await chromium.connectOverCDP(w.endpoint);
+    const page = await browser.contexts()[0].newPage();
+    await page.goto(url);
+    await until(done);
+    const cdp = await browser.newBrowserCDPSession();
+    await cdp.send('Browser.close').catch(() => {});
+    return;
+  }
+  await new Promise(r => setTimeout(r, 1500));
+  spawn('/opt/google/chrome/chrome', [`--user-data-dir=${dir}`, '--password-store=basic', url], { stdio: 'ignore' });
+  await until(done);
+  await new Promise(r => setTimeout(r, 500));
+  w.close();
+}
+
+async function until(cond: () => boolean, ms = 15_000) {
+  for (const end = Date.now() + ms; Date.now() < end; await new Promise(r => setTimeout(r, 100))) {
+    if (cond()) return;
+  }
+  throw new Error('timed out waiting for the page');
 }
 
 function gp(name: string) {
@@ -51,6 +79,23 @@ describe('login window', () => {
     assert.equal(result.timedOut, false);
     assert.deepEqual(result.domains, [new URL(site.url).host]);
     assert.equal(statSync(findProfile(sb.paths, 'Sam')!.dir).mode & 0o777, 0o700);
+  });
+
+  test('the login window is a plain Chrome, not flagged as automated', { skip: !headed && 'headless Chrome always reports webdriver' }, async () => {
+    addProfile(sb.paths, 'Plain', 'local', {});
+    const dir = findProfile(sb.paths, 'Plain')!.dir;
+    const report = () => site.hits.find(h => h.startsWith('/report?'));
+    await openLoginWindow(dir, { name: 'Plain', onReady: w => visitAndClose(w, dir, `${site.url}/probe`, () => !!report()) });
+    assert.equal(report(), '/report?webdriver=false');
+  });
+
+  test('a profile that is already open is reported', async () => {
+    addProfile(sb.paths, 'Busy', 'local', {});
+    const dir = findProfile(sb.paths, 'Busy')!.dir;
+    const first = openLoginWindow(dir, { name: 'Busy', timeoutMs: 8000 });
+    await new Promise(r => setTimeout(r, 2500));
+    await assert.rejects(openLoginWindow(dir, { name: 'Busy' }), /already open/);
+    await first;
   });
 
   test('times out and closes the window', async () => {

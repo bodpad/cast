@@ -40,7 +40,7 @@ After that Claude knows at startup: "there are browsers for Sam (sam@email.com: 
 - `XDG_CONFIG_HOME` and `XDG_DATA_HOME` are honoured. Tests override with `CAST_CONFIG_DIR` and `CAST_DATA_DIR`.
 
 ## Engine: a gateway over @playwright/mcp (chosen after a spike)
-The `cast` MCP server in Node/TS. For each open profile it starts a child `@playwright/mcp` (stdio, via the `@modelcontextprotocol/sdk` Client) with that profile folder. Claude gets **one** set of Playwright MCP browser tools, each with an added required `profile` parameter, and the call is proxied to the right child. The login window for `/cast:add` and `/cast:login` is opened with the `playwright-core` library of the same version, so Chrome launch flags match.
+The `cast` MCP server in Node/TS. For each open profile it starts a child `@playwright/mcp` (stdio, via the `@modelcontextprotocol/sdk` Client) with that profile folder. Claude gets **one** set of Playwright MCP browser tools, each with an added required `profile` parameter, and the call is proxied to the right child. The login window for `/cast:add` and `/cast:login` is a **plain Chrome** started by cast without any automation (see "Login window" below); it shares `--password-store=basic` with Playwright, so both read the same cookies.
 
 ### Spike results (Linux, Chrome 151, @playwright/mcp 0.0.83, 2026-09-30)
 Both candidates, a gateway over Playwright MCP and Vercel agent-browser 0.38.1, passed three tests in headed mode:
@@ -60,6 +60,17 @@ Playwright MCP was chosen because `/cast:add` needs standard events: navigations
 - **Entry point:** `@playwright/mcp` does not export `cli.js`. Path: `dirname(require.resolve('@playwright/mcp/package.json')) + '/cli.js'`, run with `process.execPath`.
 - Child launch: `--browser chrome --user-data-dir <dir> --output-dir <dir>`.
 - **Snapshots go to files (found during implementation):** in 0.0.83 action tools (`browser_navigate`, `browser_click`…) do not return the page; they write an automatic snapshot to a file and return `[Snapshot](<path relative to the child's cwd>)`. Only an explicit `browser_snapshot` returns the page inline. The gateway starts the child with `cwd = output-dir` and rewrites such links to absolute paths; the `cast` skill tells Claude to call `browser_snapshot` or read the file.
+
+### Login window: why plain Chrome (found in the first manual e2e, 2026-09-30)
+- A corporate tenant federated to GoDaddy SSO refused the login in the Playwright-launched window ("Dein Browser verhält sich etwas seltsam"). Playwright starts Chrome with `--enable-automation`, so pages see `navigator.webdriver = true`.
+- In Chrome 151 **`--remote-debugging-port` alone also sets `navigator.webdriver = true`** (checked: a page reports `true` with the flag and `false` without it). So the login window cannot even be observed over CDP.
+- Solution: `/cast:add` and `/cast:login` spawn `/opt/google/chrome/chrome --user-data-dir=<dir> --password-store=basic --no-first-run --no-default-browser-check --new-window <instructions> <sites>` and wait for the process to exit. cast does not hide automation anywhere; this window simply is not automated, because a human uses it.
+- Visited domains come from the profile's `Default/History` (SQLite, read with `sql.js`, pure WebAssembly, no native build): visits since the window opened.
+- **Shutdown matters:** closing the window (WM close) and `SIGINT`/`SIGHUP` flush History and cookies; **`SIGTERM` loses what is not flushed yet** (History commits every ~10 s, cookies every ~30 s). cast uses `SIGINT` on timeout.
+- A second Chrome on a busy profile hands its URLs to the running one and exits; cast checks `SingletonLock` (host-pid) first and reports "already open".
+- Tests: headless mode adds a test-only DevTools port to play the human. `CAST_TEST_HEADED=1` runs headed, opens URLs through a second `chrome` call and checks `navigator.webdriver === false`.
+- Checked headed: a login made in the plain window is visible to Playwright MCP afterwards (same cookie encryption).
+- Claude Code moves a tool call running longer than ~120 s to the background; quitting the session cancels it. The skills and the instruction page say to keep the session open.
 
 ## Claude Code plugin facts (checked on code.claude.com, 2026-09-29/30)
 - `.claude-plugin/marketplace.json`: `{ "name": "netmate", "owner": {...}, "description": "...", "plugins": [{ "name": "cast", "source": "./", "description": "..." }] }`. The install id is `<plugin>@<marketplace name>`.
@@ -99,12 +110,12 @@ PLAN.md, README.md
 ## Implementation details
 
 ### src/login-window.ts
-- `openLoginWindow(dir, opts)`: `mkdir(dir, {recursive, mode: 0o700})`, then `chromium.launchPersistentContext(dir, { channel: 'chrome', headless: false, viewport: null })`.
-- The first tab is an instruction page (`setContent`) with the profile name and the text from "Decisions". For `/cast:login` also open tabs with the known sites.
-- Domain collection: `context.on('page')` plus existing pages, `page.on('framenavigated', f => f === page.mainFrame() && http(s) → host)`. Keep the port: `localhost:3000` matters.
-- Wait for `context.on('close')`, i.e. the person closing the window. Timeout about 30 minutes; on timeout close and report.
-- If the profile is currently open in the gateway of the same process, close it there first.
-- For tests: an option that hands the `context` out so the test can browse and close the window itself. The hidden variable `CAST_TEST_HEADLESS=1` enables headless in tests only.
+- `openLoginWindow(dir, opts)`: `mkdir(dir, 0o700)`, refuse if `SingletonLock` points to a live process, spawn plain Chrome (flags above). `CAST_CHROME` overrides the binary.
+- The first tab is an instruction page (a temporary `file://` HTML) with the profile name and the text from "Decisions". For `/cast:login` also open tabs with the known sites.
+- Wait for the Chrome process to exit, i.e. the person closing the window. Timeout 30 minutes; on timeout `SIGINT` and report.
+- Domains: hosts of `visits` newer than the start time in `Default/History`. Keep the port: `localhost:3000` matters.
+- If the profile is currently open in the gateway of the same process, close it there first (done in `mcp.ts`).
+- For tests: `onReady({ endpoint?, close })`; `CAST_TEST_HEADLESS=1` enables headless plus a DevTools port, tests only.
 
 ### src/gateway.ts
 - `Gateway`: `Map<profileName, { client, transport }>`.
@@ -152,13 +163,15 @@ cast: browser users available (open with cast_open / browser_* tools with profil
     - `cast_list` and `browser_*` output does not contain cookie values.
 - ✅ `claude plugin validate --strict .`
 - ✅ Install from a local marketplace (`claude plugin marketplace add <path>`, `claude plugin install cast@netmate`): 5 skills, 1 hook, 1 MCP server.
-- **Manual e2e (pending):**
+- ✅ `CAST_TEST_HEADED=1`: all integration tests pass with visible windows, including `navigator.webdriver === false` in the login window.
+- **Manual e2e (in progress):** first run found the SSO bot-check problem above (fixed in 0.1.1).
   1. Install the plugin → `/cast:add Sam`, `/cast:add Elon` on a local test page.
   2. Restart Claude Code, then "check that Elon sees Sam's message": both windows open logged in.
   3. Delete Sam's cookie: Claude asks for `/cast:login Sam`.
 
 ## Deferred (improvements, to discuss at the end)
-- One profile in two Claude sessions: a lock and a "Sam is already open in another Claude session" message. Today Chrome refuses a busy folder; the gateway adds a readable hint to that error.
+- One profile in two Claude sessions: a lock and a "Sam is already open in another Claude session" message. Today Chrome refuses a busy folder; the gateway adds a readable hint and the login window checks `SingletonLock`.
+- Sites that reject automated browsers even after login (possible for Teams/Entra with strict policies): cast will not disguise automation; document per-site findings.
 - Detecting logged-in / expired state (a rule by URL or selector), `/cast:check`, a `clean` profile for sign-up tests.
 - Whether to hide `browser_run_code_unsafe` (it can read cookies).
 - macOS and Windows, optional headless, TOTP via keychain, video or GIF recording, publishing to npm (`@netmate/cast`) and to the Anthropic directory.

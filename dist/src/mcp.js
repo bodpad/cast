@@ -6,6 +6,7 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprot
 import { Gateway, PROFILE_PARAM } from './gateway.js';
 import { openLoginWindow, normalizeSite } from './login-window.js';
 import { outputDir, resolvePaths } from './paths.js';
+import { VERSION } from './version.js';
 import { RegistryError, addProfile, findProfile, loadProfiles, removeProfile, requireReady, updateProfile, } from './registry.js';
 const HUMAN_ONLY = 'Call ONLY when the user explicitly asked for it (/cast:add, /cast:login): a human must log in in the window. Never call it on your own because a session expired.';
 const CAST_TOOLS = [
@@ -63,7 +64,7 @@ const CAST_TOOLS = [
     },
 ];
 export function createServer(paths, gateway) {
-    const server = new Server({ name: 'cast', version: '0.1.0' }, { capabilities: { tools: {} } });
+    const server = new Server({ name: 'cast', version: VERSION }, { capabilities: { tools: {} } });
     server.setRequestHandler(ListToolsRequestSchema, async () => ({
         tools: [...CAST_TOOLS, ...await gateway.toolDefs()],
     }));

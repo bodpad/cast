@@ -65,11 +65,11 @@ It should say there are no profiles yet.
 
 Email and description are optional; they help Claude pick the right person ("the sender"). If you leave them out, Claude asks once and you can skip.
 
-**2. Log in.** A clean Chrome window opens with a short instruction page.
+**2. Log in.** A clean Chrome window opens with a short instruction page. It is a regular Chrome that nothing controls, so corporate SSO with bot protection (Okta, GoDaddy, Entra…) works as usual.
 
 - Open new tabs and log in everywhere Sam needs: your app, SSO (Microsoft, Google…), email, chat.
 - On MFA prompts choose **"Stay signed in"**, otherwise the session expires quickly.
-- **Close the window** when you are done. That is the signal for cast.
+- **Close the window** when you are done. That is the signal for cast. Keep the Claude Code session open until then.
 
 **3. Confirm the sites.** cast shows the domains you visited (e.g. `localhost:3000`, `login.microsoftonline.com`, `outlook.office.com`) and asks which to remember. Claude uses this list to know where each person works.
 
@@ -159,6 +159,8 @@ The profile list is plain YAML: you can edit sites or descriptions by hand.
 - cast **never types or stores passwords**. You log in yourself; Claude is instructed never to fill login forms.
 - cast **never prints cookies or tokens**. From your login session it records only host names of visited sites.
 - Chrome data folders are readable only by you (`0700`). Deleting a profile with `/cast:remove` deletes its data.
+- cast does not disguise automation: the login window is a plain Chrome because a human uses it; when Claude works, sites can see an automated browser.
+- See [SECURITY.md](SECURITY.md) for details and how to report a vulnerability.
 
 ## Troubleshooting
 
@@ -170,6 +172,9 @@ Claude Code must be started from a desktop session where `DISPLAY` is set (`echo
 
 **"profile is already open in another Chrome".**
 One Chrome profile can be used by one browser at a time. Close the other window: a `/cast:login` window, or the same profile opened by another Claude Code session.
+
+**SSO says "your browser behaves strangely" or blocks the login.**
+Make sure you log in in the `/cast:add` or `/cast:login` window: it is a plain Chrome and passes such checks. Claude's own work runs under Playwright, which sites can recognise as automation; if a site refuses automated browsers even after login, that is its policy and cast does not try to hide automation.
 
 **Claude says a session expired.**
 Run `/cast:login <name>`, log in again, close the window. Choose "Stay signed in" to keep sessions longer.
@@ -196,7 +201,7 @@ Uninstalling keeps your profiles and logins. To delete them too, remove `~/.conf
 
 - `src/mcp.ts` — the `cast` MCP server. It exposes `cast_*` tools and all Playwright browser tools (`browser_click`, `browser_snapshot`, …) with an extra required `profile` parameter.
 - `src/gateway.ts` — starts one [`@playwright/mcp`](https://github.com/microsoft/playwright-mcp) child per open profile (with that profile's Chrome user-data-dir) and routes each `browser_*` call to it.
-- `src/login-window.ts` — the login window for `/cast:add` and `/cast:login`, built on the same `playwright-core`, so both read the profile the same way. Records visited hosts and waits for the window to close.
+- `src/login-window.ts` — the login window for `/cast:add` and `/cast:login`: a plain Chrome with no automation flags (SSO bot checks reject automated browsers). It waits for the window to close and reads visited hosts from the profile's History. It uses `--password-store=basic` like Playwright, so both read the same cookies.
 - `src/registry.ts`, `src/paths.ts` — profile lists in the three scopes and where files go.
 - `src/cli.ts` — `list --brief`, printed by the `SessionStart` hook (`hooks/hooks.json`) so Claude knows the profiles.
 - `skills/` — the `/cast:*` commands and the `cast` skill that tells Claude how to work with profiles.
@@ -213,7 +218,7 @@ claude --plugin-dir .             # run Claude Code with your working copy of th
 claude plugin validate --strict . # check the manifests
 ```
 
-- Tests use `node:test`; integration tests start a tiny local site and a real Chrome with `CAST_TEST_HEADLESS=1`.
+- Tests use `node:test`; integration tests start a tiny local site and a real Chrome, headless by default. `CAST_TEST_HEADED=1 npm test` runs them with visible windows and also checks that the login window is not flagged as automated.
 - `CAST_CONFIG_DIR`, `CAST_DATA_DIR` and `CAST_PROJECT_DIR` redirect all cast files, handy for experiments.
 - `dist/src` is committed so the plugin works without a build step after install. Run `npm run build` and commit `dist/` together with source changes.
 

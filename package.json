@@ -1,11 +1,13 @@
 {
   "name": "@netmate/cast",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Several logged-in browser users for Claude Code: one persistent Chrome profile per person.",
   "license": "MIT",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "build": "tsc -p .",
     "test": "npm run build && node --test --test-concurrency=1 dist/test/"
@@ -14,11 +16,13 @@
     "@modelcontextprotocol/sdk": "1.31.0",
     "@playwright/mcp": "0.0.83",
     "playwright-core": "1.64.0-alpha-1790635538000",
+    "sql.js": "1.14.2",
     "yaml": "2.9.1",
     "zod": "4.6.5"
   },
   "devDependencies": {
     "@types/node": "20.19.43",
+    "@types/sql.js": "1.4.11",
     "typescript": "7.0.2"
   }
 }

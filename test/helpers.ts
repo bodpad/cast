@@ -29,14 +29,23 @@ export interface TestSite {
   url: string;
   /** Session token values that must never show up in cast output. */
   secrets: string[];
+  /** Request paths with query, in order. */
+  hits: string[];
   close(): Promise<void>;
 }
 
 /** /login?user=X sets a persistent session cookie; / greets the user and has a confirm() button. */
 export async function startSite(): Promise<TestSite> {
   const secrets: string[] = [];
+  const hits: string[] = [];
   const server: Server = createServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://x');
+    hits.push(url.pathname + url.search);
+    if (url.pathname === '/probe') {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end('<script>fetch("/report?webdriver=" + navigator.webdriver)</script>');
+      return;
+    }
     if (url.pathname === '/login') {
       const user = url.searchParams.get('user') ?? 'anon';
       const token = `tok${randomBytes(12).toString('hex')}`;
@@ -61,6 +70,7 @@ export async function startSite(): Promise<TestSite> {
   return {
     url: `http://127.0.0.1:${port}`,
     secrets,
+    hits,
     close: () => new Promise(r => { server.closeAllConnections(); server.close(() => r()); }),
   };
 }

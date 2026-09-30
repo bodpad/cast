@@ -3,6 +3,7 @@ import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { ensurePrivateDir } from './paths.js';
+import { VERSION } from './version.js';
 const require = createRequire(import.meta.url);
 /** @playwright/mcp does not export cli.js, so locate it next to its package.json. */
 const PLAYWRIGHT_MCP_CLI = join(dirname(require.resolve('@playwright/mcp/package.json')), 'cli.js');
@@ -29,7 +30,7 @@ export class Gateway {
         if (current)
             this.children.delete(key);
         ensurePrivateDir(profile.dir);
-        const client = new Client({ name: 'cast', version: '0.1.0' });
+        const client = new Client({ name: 'cast', version: VERSION });
         ensurePrivateDir(profile.outputDir);
         const transport = spawnChild([
             '--user-data-dir', profile.dir,
@@ -61,7 +62,7 @@ export class Gateway {
     /** Playwright MCP's tools with a required "profile" parameter. Fetched once from a child with no profile (Chrome does not start). */
     toolDefs() {
         this.tools ??= (async () => {
-            const client = new Client({ name: 'cast', version: '0.1.0' });
+            const client = new Client({ name: 'cast', version: VERSION });
             await client.connect(spawnChild([]));
             try {
                 const { tools } = await client.listTools();

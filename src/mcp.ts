@@ -6,6 +6,7 @@ import { type CallToolResult, CallToolRequestSchema, ListToolsRequestSchema, typ
 import { Gateway, type GatewayProfile, PROFILE_PARAM } from './gateway.js';
 import { openLoginWindow, normalizeSite } from './login-window.js';
 import { type CastPaths, type Scope, outputDir, resolvePaths } from './paths.js';
+import { VERSION } from './version.js';
 import {
   type Profile, RegistryError, addProfile, findProfile, loadProfiles, removeProfile, requireReady, updateProfile,
 } from './registry.js';
@@ -71,7 +72,7 @@ type Args = Record<string, unknown>;
 type Progress = () => void;
 
 export function createServer(paths: CastPaths, gateway: Gateway): Server {
-  const server = new Server({ name: 'cast', version: '0.1.0' }, { capabilities: { tools: {} } });
+  const server = new Server({ name: 'cast', version: VERSION }, { capabilities: { tools: {} } });
 
   server.setRequestHandler(ListToolsRequestSchema, async () => ({
     tools: [...CAST_TOOLS, ...await gateway.toolDefs()],
