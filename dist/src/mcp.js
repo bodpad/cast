@@ -32,7 +32,7 @@ const CAST_TOOLS = [
     },
     {
         name: 'cast_add',
-        description: `Create a profile and open a clean Chrome for the human to log in; blocks until they close the window and returns the visited domains. ${HUMAN_ONLY}`,
+        description: `Create a profile and open a clean Chrome for the human to log in; blocks until they close the window, saves the sites the user landed on and returns them. ${HUMAN_ONLY}`,
         inputSchema: {
             type: 'object',
             properties: {
@@ -46,7 +46,7 @@ const CAST_TOOLS = [
     },
     {
         name: 'cast_login',
-        description: `Reopen an existing profile for the human to log in again or add sites; blocks until they close the window and returns newly visited domains. ${HUMAN_ONLY}`,
+        description: `Reopen an existing profile for the human to log in again or add sites; blocks until they close the window, adds newly visited sites to the saved ones and returns them. ${HUMAN_ONLY}`,
         inputSchema: { type: 'object', properties: { name: PROFILE_PARAM }, required: ['name'] },
     },
     {
@@ -135,8 +135,7 @@ async function castTool(paths, gateway, tool, args, progress) {
             const p = addProfile(paths, name, scope, { email: optStr(args, 'email'), description: optStr(args, 'description') });
             try {
                 const result = await loginWindow(gateway, p, progress);
-                updateProfile(paths, p.name, { lastLoginAt: new Date().toISOString() });
-                return ok(loginReport(p, result));
+                return ok(saveLogin(paths, p, result));
             }
             catch (e) {
                 if (!before)
@@ -147,8 +146,7 @@ async function castTool(paths, gateway, tool, args, progress) {
         case 'cast_login': {
             const p = ensureColor(paths, str(args, 'name'));
             const result = await loginWindow(gateway, p, progress);
-            updateProfile(paths, p.name, { lastLoginAt: new Date().toISOString() });
-            return ok(loginReport(p, { ...result, sites: result.sites.filter(d => !p.sites.includes(d)) }));
+            return ok(saveLogin(paths, p, result));
         }
         case 'cast_set_sites': {
             const raw = args.sites;
@@ -191,15 +189,23 @@ async function loginWindow(gateway, p, progress) {
         clearInterval(heartbeat);
     }
 }
-function loginReport(p, r) {
+/** Saves the sites the user landed on without asking (/cast:edit changes them) and reports the login. */
+function saveLogin(paths, p, r) {
+    const added = r.sites.filter(d => !p.sites.includes(d));
+    const saved = updateProfile(paths, p.name, { sites: [...p.sites, ...added], lastLoginAt: new Date().toISOString() });
+    return loginReport(saved, r, added);
+}
+function loginReport(p, r, added) {
     const lines = [
         r.timedOut
             ? `The login window for "${p.name}" was open too long and cast closed it. Logins made so far are kept.`
             : `The user closed the login window for "${p.name}".`,
-        `Suggested sites (where the user landed${p.sites.length ? ', not saved yet' : ''}): ${r.sites.join(', ') || '(none)'}`,
-        `Sign-in pages and redirects (not suggested; Claude never logs in itself): ${r.signIn.join(', ') || '(none)'}`,
-        `Currently saved sites: ${p.sites.join(', ') || '(none)'}`,
-        'Show the suggested sites and ask which to keep (the user may also name the app they logged in to), then call cast_set_sites with the full list.',
+        `Sites added (where the user landed): ${added.join(', ') || '(none)'}`,
+        `Saved sites now: ${p.sites.join(', ') || '(none)'}`,
+        `Sign-in pages and redirects (left out; Claude never logs in itself): ${r.signIn.join(', ') || '(none)'}`,
+        p.sites.length
+            ? `Do not ask about the sites: tell the user in one line which ones were saved and that /cast:edit ${p.name} changes them.`
+            : 'No sites were saved (only sign-in pages were visited): ask the user for the address of the app they logged in to, then call cast_set_sites.',
     ];
     if (r.landings.length) {
         lines.push('Last page the user saw on each site (the path and title often tell the role):');

@@ -5,6 +5,12 @@
 ### Added
 - Each profile's Chrome window has its own theme color and shows the person in the title bar, e.g. `Sam (sends messages) · cast` (`· log in ·` in the login window). New profiles get a color no other profile uses; existing ones get one the next time they open.
 
+## 0.4.0 — 2026-09-30
+
+### Changed
+- `/cast:add` and `/cast:login` save the sites where you landed without asking; Claude says in one line what was saved. It asks for the app's address only when you visited nothing but sign-in pages.
+- `/cast:edit <name> +site -site` adds or removes sites.
+
 ## 0.3.1 — 2026-09-30
 
 ### Changed
