@@ -1,0 +1,182 @@
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
+import YAML from 'yaml';
+import { z } from 'zod';
+import { type CastPaths, type Scope, listFile, profileDir } from './paths.js';
+
+const NAME_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,39}$/;
+
+const personalEntry = z.object({
+  email: z.string().optional(),
+  description: z.string().optional(),
+  sites: z.array(z.string()).default([]),
+  createdAt: z.string().optional(),
+  lastLoginAt: z.string().optional(),
+});
+const slotEntry = z.object({ description: z.string().optional() });
+
+const personalFile = z.object({ version: z.literal(1).default(1), profiles: z.record(z.string(), personalEntry).default({}) });
+const projectFile = z.object({ version: z.literal(1).default(1), profiles: z.record(z.string(), slotEntry).default({}) });
+
+type PersonalEntry = z.infer<typeof personalEntry>;
+type PersonalFile = z.infer<typeof personalFile>;
+type ProjectFile = z.infer<typeof projectFile>;
+
+export interface Profile {
+  name: string;
+  /** local and user profiles are personal; project profiles are team slots that each developer fills. */
+  scope: Scope;
+  email?: string;
+  description?: string;
+  sites: string[];
+  /** false for a project slot this developer has not logged in to yet. */
+  ready: boolean;
+  dir: string;
+  createdAt?: string;
+  lastLoginAt?: string;
+}
+
+export class RegistryError extends Error {}
+
+export function validateName(name: string): string {
+  if (!NAME_RE.test(name)) {
+    throw new RegistryError(`Invalid profile name "${name}": use letters, digits, "-" or "_" (up to 40 characters).`);
+  }
+  return name;
+}
+
+export function loadProfiles(paths: CastPaths): Profile[] {
+  const user = readPersonal(paths, 'user');
+  const local = readPersonal(paths, 'local');
+  const project = readProject(paths);
+  const byKey = new Map<string, Profile>();
+
+  const personal = (scope: Scope, name: string, e: PersonalEntry): Profile => ({
+    name, scope, email: e.email, description: e.description, sites: e.sites, ready: true,
+    dir: profileDir(paths, scope, name), createdAt: e.createdAt, lastLoginAt: e.lastLoginAt,
+  });
+
+  // Lowest precedence first; later writes win: user < project < local.
+  for (const [name, e] of Object.entries(user.profiles)) byKey.set(name.toLowerCase(), personal('user', name, e));
+  for (const [name, slot] of Object.entries(project.profiles)) {
+    byKey.set(name.toLowerCase(), {
+      name, scope: 'project', description: slot.description, sites: [], ready: false, dir: profileDir(paths, 'project', name),
+    });
+  }
+  for (const [name, e] of Object.entries(local.profiles)) {
+    const slot = findKey(project.profiles, name);
+    if (slot) {
+      // The developer's own login for a team slot.
+      const p = personal('project', slot, e);
+      p.description = e.description || project.profiles[slot].description;
+      byKey.set(name.toLowerCase(), p);
+    } else {
+      byKey.set(name.toLowerCase(), personal('local', name, e));
+    }
+  }
+  return [...byKey.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+export function findProfile(paths: CastPaths, name: string): Profile | undefined {
+  return loadProfiles(paths).find(p => p.name.toLowerCase() === name.toLowerCase());
+}
+
+export interface ProfileInput {
+  email?: string;
+  description?: string;
+}
+
+/**
+ * Registers a profile before its first login. For scope "project" the slot (name + description)
+ * goes to the committed .claude/cast.yaml and the personal part to the developer's local list.
+ */
+export function addProfile(paths: CastPaths, name: string, scope: Scope, input: ProfileInput): Profile {
+  validateName(name);
+  const existing = findProfile(paths, name);
+  if (existing?.ready) {
+    throw new RegistryError(`Profile "${existing.name}" already exists (${existing.scope}). Use /cast:login ${existing.name} to log in again.`);
+  }
+  if (existing && !existing.ready) scope = 'project';
+  const now = new Date().toISOString();
+  const entry: PersonalEntry = { email: input.email || undefined, description: input.description || undefined, sites: [], createdAt: now };
+
+  if (scope === 'project') {
+    const project = readProject(paths);
+    const slotName = findKey(project.profiles, name) ?? name;
+    if (!project.profiles[slotName]) project.profiles[slotName] = { description: input.description || undefined };
+    writeYaml(listFile(paths, 'project'), project);
+    // The slot already carries the shared description.
+    updatePersonal(paths, 'local', f => { f.profiles[slotName] = { ...entry, description: undefined }; });
+  } else {
+    updatePersonal(paths, scope, f => { f.profiles[name] = entry; });
+  }
+  return findProfile(paths, name)!;
+}
+
+/** Updates the personal part (email, sites, timestamps) wherever this developer keeps it. */
+export function updateProfile(paths: CastPaths, name: string, patch: Partial<PersonalEntry>): Profile {
+  const p = requireReady(paths, name);
+  const scope: Scope = p.scope === 'user' ? 'user' : 'local';
+  updatePersonal(paths, scope, f => {
+    const key = findKey(f.profiles, p.name)!;
+    f.profiles[key] = { ...f.profiles[key], ...stripUndefined(patch) };
+  });
+  return findProfile(paths, name)!;
+}
+
+/** Forgets this developer's login. A project slot itself stays in .claude/cast.yaml for the team. */
+export function removeProfile(paths: CastPaths, name: string): Profile {
+  const p = findProfile(paths, name);
+  if (!p) throw new RegistryError(`No profile named "${name}".`);
+  if (!p.ready) throw new RegistryError(`"${p.name}" is a project slot you have not logged in to; remove it from .claude/cast.yaml instead.`);
+  const scope: Scope = p.scope === 'user' ? 'user' : 'local';
+  updatePersonal(paths, scope, f => { delete f.profiles[findKey(f.profiles, p.name)!]; });
+  return p;
+}
+
+export function requireReady(paths: CastPaths, name: string): Profile {
+  const p = findProfile(paths, name);
+  if (!p) throw new RegistryError(`No profile named "${name}". Ask the user to run /cast:add ${name}.`);
+  if (!p.ready) throw new RegistryError(`Profile "${p.name}" is not set up on this machine yet. Ask the user to run /cast:add ${p.name}.`);
+  return p;
+}
+
+function readPersonal(paths: CastPaths, scope: 'local' | 'user'): PersonalFile {
+  return parse(listFile(paths, scope), personalFile);
+}
+
+function readProject(paths: CastPaths): ProjectFile {
+  return parse(listFile(paths, 'project'), projectFile);
+}
+
+function parse<T extends z.ZodType>(file: string, schema: T): z.infer<T> {
+  if (!existsSync(file)) return schema.parse({});
+  let raw: unknown;
+  try {
+    raw = YAML.parse(readFileSync(file, 'utf8')) ?? {};
+  } catch (e) {
+    throw new RegistryError(`Cannot read ${file}: ${(e as Error).message}`);
+  }
+  const r = schema.safeParse(raw);
+  if (!r.success) throw new RegistryError(`Invalid ${file}: ${z.prettifyError(r.error)}`);
+  return r.data;
+}
+
+function updatePersonal(paths: CastPaths, scope: 'local' | 'user', fn: (f: PersonalFile) => void): void {
+  const f = readPersonal(paths, scope);
+  fn(f);
+  writeYaml(listFile(paths, scope), f);
+}
+
+function writeYaml(file: string, data: unknown): void {
+  mkdirSync(dirname(file), { recursive: true, mode: 0o700 });
+  writeFileSync(file, YAML.stringify(stripUndefined(data)));
+}
+
+function findKey(record: Record<string, unknown>, name: string): string | undefined {
+  return Object.keys(record).find(k => k.toLowerCase() === name.toLowerCase());
+}
+
+function stripUndefined<T>(v: T): T {
+  return JSON.parse(JSON.stringify(v));
+}
