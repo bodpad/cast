@@ -1,10 +1,16 @@
 # Changelog
 
+## 0.3.1 — 2026-09-30
+
+### Changed
+- Examples in the skills and tool descriptions use neutral names (`alex-qa`, `app.example.com`).
+- README says what cast reads from a profile's browser history after login: URLs and page titles of that profile only.
+
 ## 0.3.0 — 2026-09-30
 
 ### Added
 - `/cast:edit <name>` and the `cast_update` tool change a profile's email or description without deleting it or logging in again.
-- After `/cast:add` and `/cast:login`, cast reports the last page you saw on each site (path and title, no query string). If the profile has no description, Claude suggests one from it (e.g. "vendor on platform-dev (/vendor)") and saves it only when you confirm.
+- After `/cast:add` and `/cast:login`, cast reports the last page you saw on each site (path and title, no query string). If the profile has no description, Claude suggests one from it (e.g. "vendor on app.example.com (/vendor)") and saves it only when you confirm.
 
 ### Changed
 - Claude picks profiles by their description and no longer guesses a role from a profile name, email or sites. When no profile or several match, it asks once and saves your answer in the description.

@@ -41,7 +41,7 @@ const CAST_TOOLS: Tool[] = [
       properties: {
         name: { type: 'string', description: 'Profile name: letters, digits, "-" or "_"' },
         email: { type: 'string' },
-        description: { type: 'string', description: 'Who this person is in tests, e.g. "sender" or "vendor, Insygna org". Only what the user gave.' },
+        description: { type: 'string', description: 'Who this person is in tests, e.g. "sender" or "vendor, Acme org". Only what the user gave.' },
         scope: { type: 'string', enum: ['local', 'project', 'user'], description: 'local (default): this project only; project: shared team slot in .claude/cast.yaml; user: all projects' },
       },
       required: ['name'],
@@ -63,7 +63,7 @@ const CAST_TOOLS: Tool[] = [
   },
   {
     name: 'cast_update',
-    description: 'Change the email or description of a profile without logging in again. The description says who this person is in tests (e.g. "vendor, Insygna org"); Claude picks profiles by it. Save only what the user stated or confirmed, never a guess. An empty string clears a field.',
+    description: 'Change the email or description of a profile without logging in again. The description says who this person is in tests (e.g. "vendor, Acme org"); Claude picks profiles by it. Save only what the user stated or confirmed, never a guess. An empty string clears a field.',
     inputSchema: {
       type: 'object',
       properties: { name: PROFILE_PARAM, email: { type: 'string' }, description: { type: 'string' } },
@@ -211,7 +211,7 @@ function loginReport(p: Profile, r: LoginResult): string {
   lines.push(p.description
     ? `Saved description: "${p.description}".`
     : 'The profile has no description, so Claude cannot tell who this person is. In the same message, ask who this person is in the tests, '
-      + 'suggesting a short description from the pages above if they show a role (e.g. "vendor on platform-dev (/vendor)"). '
+      + 'suggesting a short description from the pages above if they show a role (e.g. "vendor on app.example.com (/vendor)"). '
       + 'Call cast_update only with what the user answered or confirmed; if they decline, save nothing.');
   return lines.join('\n');
 }
