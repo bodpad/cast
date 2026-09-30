@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0 — 2026-09-30
+
+### Changed
+- `/cast:add` and `/cast:login` save the sites where you landed without asking; Claude says in one line what was saved. It asks for the app's address only when you visited nothing but sign-in pages.
+- `/cast:edit <name> +site -site` adds or removes sites.
+
 ## 0.3.1 — 2026-09-30
 
 ### Changed
