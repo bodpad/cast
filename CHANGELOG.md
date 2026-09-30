@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.6.0 — 2026-09-30
+
+### Changed
+- `/cast:add` and `/cast:login` no longer keep Claude waiting while the login window is open. Log in, close the window and tell Claude; you may also leave the Claude Code session meanwhile. cast saves the visited sites when the window closes, or at the next session start.
+- While a profile's login window is open, Claude does not use that profile and says so.
+
+### Added
+- The `cast_login_result` tool: whether the login window is closed, and what was saved from it.
+
 ## 0.5.0 — 2026-09-30
 
 ### Added

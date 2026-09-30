@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 import { briefList } from './format.js';
+import { finishClosedLogins } from './logins.js';
 import { resolvePaths } from './paths.js';
 import { loadProfiles } from './registry.js';
 
-function main(argv: string[]): number {
+async function main(argv: string[]): Promise<number> {
   const [command, ...flags] = argv;
   if (command !== 'list') {
     console.error('usage: cast list [--brief]');
@@ -11,7 +12,10 @@ function main(argv: string[]): number {
   }
   let profiles;
   try {
-    profiles = loadProfiles(resolvePaths());
+    const paths = resolvePaths();
+    // A login window closed after its Claude session ended: save its sites now.
+    await finishClosedLogins(paths);
+    profiles = loadProfiles(paths);
   } catch (e) {
     // Runs in the SessionStart hook: tell Claude, but never fail the session.
     console.log(`cast: cannot read browser profiles: ${(e as Error).message}`);
@@ -26,4 +30,4 @@ function main(argv: string[]): number {
   return 0;
 }
 
-process.exitCode = main(process.argv.slice(2));
+process.exitCode = await main(process.argv.slice(2));

@@ -10,6 +10,8 @@ const personalEntry = z.object({
     sites: z.array(z.string()).default([]),
     createdAt: z.string().optional(),
     lastLoginAt: z.string().optional(),
+    /** When the last login window opened; the login is finished once lastLoginAt is later. */
+    loginStartedAt: z.string().optional(),
     /** Window color, e.g. "#1e88e5", so people tell the windows apart. */
     color: z.string().optional(),
 });
@@ -33,7 +35,7 @@ export function loadProfiles(paths) {
     const byKey = new Map();
     const personal = (scope, name, e) => ({
         name, scope, email: e.email, description: e.description, sites: e.sites, ready: true,
-        dir: profileDir(paths, scope, name), createdAt: e.createdAt, lastLoginAt: e.lastLoginAt, color: e.color,
+        dir: profileDir(paths, scope, name), createdAt: e.createdAt, lastLoginAt: e.lastLoginAt, loginStartedAt: e.loginStartedAt, color: e.color,
     });
     // Lowest precedence first; later writes win: user < project < local.
     for (const [name, e] of Object.entries(user.profiles))

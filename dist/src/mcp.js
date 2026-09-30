@@ -5,10 +5,11 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { CallToolRequestSchema, ListToolsRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { windowLook } from './format.js';
 import { Gateway, PROFILE_PARAM } from './gateway.js';
-import { openLoginWindow, normalizeSite } from './login-window.js';
+import { normalizeSite, startLoginWindow } from './login-window.js';
+import { finishClosedLogins, finishLogin, lastLogin, loginPending } from './logins.js';
 import { outputDir, resolvePaths } from './paths.js';
 import { VERSION } from './version.js';
-import { RegistryError, addProfile, editProfile, ensureColor, findProfile, loadProfiles, removeProfile, updateProfile, } from './registry.js';
+import { RegistryError, addProfile, editProfile, ensureColor, findProfile, loadProfiles, removeProfile, requireReady, updateProfile, } from './registry.js';
 const HUMAN_ONLY = 'Call ONLY when the user explicitly asked for it (/cast:add, /cast:login): a human must log in in the window. Never call it on your own because a session expired.';
 const CAST_TOOLS = [
     {
@@ -32,7 +33,7 @@ const CAST_TOOLS = [
     },
     {
         name: 'cast_add',
-        description: `Create a profile and open a clean Chrome for the human to log in; blocks until they close the window, saves the sites the user landed on and returns them. ${HUMAN_ONLY}`,
+        description: `Create a profile and open a clean Chrome for the human to log in. Returns at once; when the user says they are done, call cast_login_result. ${HUMAN_ONLY}`,
         inputSchema: {
             type: 'object',
             properties: {
@@ -46,7 +47,12 @@ const CAST_TOOLS = [
     },
     {
         name: 'cast_login',
-        description: `Reopen an existing profile for the human to log in again or add sites; blocks until they close the window, adds newly visited sites to the saved ones and returns them. ${HUMAN_ONLY}`,
+        description: `Reopen an existing profile for the human to log in again or add sites. Returns at once; when the user says they are done, call cast_login_result. ${HUMAN_ONLY}`,
+        inputSchema: { type: 'object', properties: { name: PROFILE_PARAM }, required: ['name'] },
+    },
+    {
+        name: 'cast_login_result',
+        description: 'After /cast:add or /cast:login: whether the login window is closed yet and, if so, the sites saved from it and the last page the user saw on each.',
         inputSchema: { type: 'object', properties: { name: PROFILE_PARAM }, required: ['name'] },
     },
     {
@@ -78,22 +84,17 @@ export function createServer(paths, gateway) {
     server.setRequestHandler(ListToolsRequestSchema, async () => ({
         tools: [...CAST_TOOLS, ...await gateway.toolDefs()],
     }));
-    server.setRequestHandler(CallToolRequestSchema, async (req, extra) => {
+    server.setRequestHandler(CallToolRequestSchema, async (req) => {
         const { name, arguments: args = {} } = req.params;
-        const token = req.params._meta?.progressToken;
-        let n = 0;
-        const progress = () => {
-            if (token === undefined)
-                return;
-            extra.sendNotification({ method: 'notifications/progress', params: { progressToken: token, progress: ++n } }).catch(() => { });
-        };
         try {
+            // Login windows may have been closed while nobody waited on them, even in an earlier session.
+            await finishClosedLogins(paths);
             if (name.startsWith('cast_'))
-                return await castTool(paths, gateway, name, args, progress);
+                return await castTool(paths, gateway, name, args);
             const { profile, ...rest } = args;
             if (typeof profile !== 'string')
                 return fail('Missing "profile": pass the cast profile name (see cast_list).');
-            return await gateway.call(gatewayProfile(paths, ensureColor(paths, profile)), name, rest);
+            return await gateway.call(gatewayProfile(paths, usable(paths, profile)), name, rest);
         }
         catch (e) {
             return fail(e.message);
@@ -101,7 +102,7 @@ export function createServer(paths, gateway) {
     });
     return server;
 }
-async function castTool(paths, gateway, tool, args, progress) {
+async function castTool(paths, gateway, tool, args) {
     switch (tool) {
         case 'cast_list': {
             const open = new Set(gateway.openNames().map(n => n.toLowerCase()));
@@ -113,7 +114,7 @@ async function castTool(paths, gateway, tool, args, progress) {
             return ok(profiles.length ? JSON.stringify(profiles, null, 2) : 'No cast profiles yet. The user can create one with /cast:add <name>.');
         }
         case 'cast_open': {
-            const p = ensureColor(paths, str(args, 'profile'));
+            const p = usable(paths, str(args, 'profile'));
             const gp = gatewayProfile(paths, p);
             // Playwright MCP starts Chrome lazily, so make a call that shows the window.
             const url = optStr(args, 'url');
@@ -134,19 +135,28 @@ async function castTool(paths, gateway, tool, args, progress) {
             const before = findProfile(paths, name);
             const p = addProfile(paths, name, scope, { email: optStr(args, 'email'), description: optStr(args, 'description') });
             try {
-                const result = await loginWindow(gateway, p, progress);
-                return ok(saveLogin(paths, p, result));
+                await loginWindow(paths, gateway, p);
             }
             catch (e) {
                 if (!before)
                     removeProfile(paths, p.name);
                 throw e;
             }
+            return ok(loginOpened(p));
         }
         case 'cast_login': {
             const p = ensureColor(paths, str(args, 'name'));
-            const result = await loginWindow(gateway, p, progress);
-            return ok(saveLogin(paths, p, result));
+            await loginWindow(paths, gateway, p);
+            return ok(loginOpened(p));
+        }
+        case 'cast_login_result': {
+            const name = requireReady(paths, str(args, 'name')).name;
+            const p = await finishLogin(paths, name);
+            if (!p)
+                return ok(`The login window for "${name}" is still open. Ask the user to close it when they are done logging in, then call cast_login_result again.`);
+            if (!p.lastLoginAt || !p.loginStartedAt)
+                return ok(`No login window was opened for "${p.name}". The user can run /cast:login ${p.name}.`);
+            return ok(loginReport(p, await lastLogin(p)));
         }
         case 'cast_set_sites': {
             const raw = args.sites;
@@ -178,29 +188,35 @@ async function castTool(paths, gateway, tool, args, progress) {
             return fail(`Unknown tool ${tool}.`);
     }
 }
-async function loginWindow(gateway, p, progress) {
+/** A browser_* or cast_open target: ready, and not in the middle of a login. */
+function usable(paths, name) {
+    const p = ensureColor(paths, name);
+    if (loginPending(p)) {
+        throw new RegistryError(`The login window for "${p.name}" is still open. Ask the user to finish logging in and close it, then try again.`);
+    }
+    return p;
+}
+/** Opens the window and returns at once: the human may take long, and the window outlives this session. */
+async function loginWindow(paths, gateway, p) {
     // The Chrome profile can be used by one browser at a time.
     await gateway.close(p.name);
-    const heartbeat = setInterval(progress, 20_000);
-    try {
-        return await openLoginWindow(p.dir, { name: p.name, sites: p.sites, look: windowLook(p, 'log in') });
-    }
-    finally {
-        clearInterval(heartbeat);
-    }
+    const { startedAt, chrome } = await startLoginWindow(p.dir, { name: p.name, sites: p.sites, look: windowLook(p, 'log in') });
+    updateProfile(paths, p.name, { loginStartedAt: startedAt.toISOString() });
+    // Save the sites as soon as the window closes, if this session is still running then.
+    chrome.exited.then(() => finishLogin(paths, p.name)).catch(() => { });
 }
-/** Saves the sites the user landed on without asking (/cast:edit changes them) and reports the login. */
-function saveLogin(paths, p, r) {
-    const added = r.sites.filter(d => !p.sites.includes(d));
-    const saved = updateProfile(paths, p.name, { sites: [...p.sites, ...added], lastLoginAt: new Date().toISOString() });
-    return loginReport(saved, r, added);
+function loginOpened(p) {
+    return [
+        `The login window for "${p.name}" is open. This call does not wait for it.`,
+        'Tell the user: log in everywhere this person needs, choose "Stay signed in" on MFA prompts, close the window when done and say so here. '
+            + 'They may also leave this Claude Code session: cast saves the visited sites when the window closes.',
+        `When the user says they are done, call cast_login_result {name: "${p.name}"}.`,
+    ].join('\n');
 }
-function loginReport(p, r, added) {
+function loginReport(p, r) {
     const lines = [
-        r.timedOut
-            ? `The login window for "${p.name}" was open too long and cast closed it. Logins made so far are kept.`
-            : `The user closed the login window for "${p.name}".`,
-        `Sites added (where the user landed): ${added.join(', ') || '(none)'}`,
+        `The login window for "${p.name}" is closed. cast saved the sites the user landed on.`,
+        `Sites from this login: ${r.sites.join(', ') || '(none)'}`,
         `Saved sites now: ${p.sites.join(', ') || '(none)'}`,
         `Sign-in pages and redirects (left out; Claude never logs in itself): ${r.signIn.join(', ') || '(none)'}`,
         p.sites.length

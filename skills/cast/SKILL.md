@@ -31,7 +31,7 @@ cast gives you several visible Chrome windows, one per person, each already logg
 If a response contains `### Modal state` (e.g. a `confirm` dialog), other tools will fail until you call `browser_handle_dialog {profile, accept: true|false}`.
 
 ## Expired sessions — do not log in yourself
-If a site shows a login page instead of the app, stop working with that profile and ask the user to run `/cast:login <name>`. Never type passwords, never fill login forms, never call `cast_add` or `cast_login` on your own.
+If a site shows a login page instead of the app, stop working with that profile and ask the user to run `/cast:login <name>`. If a tool says the profile's login window is still open, ask the user to finish and close it; after they say so, `cast_login_result {name}` shows what was saved. Never type passwords, never fill login forms, never call `cast_add` or `cast_login` on your own.
 
 ## Privacy
 Profiles hold real sessions (mail included). Look only at what the task needs. Never print cookies, tokens or storage contents.
