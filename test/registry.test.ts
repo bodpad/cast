@@ -287,7 +287,7 @@ describe('format', () => {
       'cast: browser users available (open with cast_open / browser_* tools with profile=<name>):\n'
       + '- Sam (local) sam@email.com — sender. Sites: localhost:3000, outlook.office.com',
     );
-    assert.equal(briefList([]), '');
+    assert.match(briefList([]), /no browser users yet.*\/cast:add <name>/);
     addProfile(sb.paths, 'Ali', 'local', {});
     assert.match(briefList(loadProfiles(sb.paths)), /- Ali \(local\) — role unknown \(no description\)\./);
   });
