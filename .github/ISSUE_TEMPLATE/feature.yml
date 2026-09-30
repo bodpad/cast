@@ -1,0 +1,17 @@
+name: Feature request
+description: Something cast could do
+labels: [enhancement]
+body:
+  - type: textarea
+    id: scenario
+    attributes:
+      label: Scenario
+      description: What you are testing, and who does what (e.g. "a vendor posts an offer, a buyer accepts it").
+    validations:
+      required: true
+  - type: textarea
+    id: missing
+    attributes:
+      label: What is missing
+    validations:
+      required: true
