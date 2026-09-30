@@ -59,6 +59,7 @@ MCP-сервер `cast` на Node/TS. На каждый открытый про�
 - **Ленивый запуск:** браузер стартует при первом браузерном вызове, а не при запуске ребёнка. Список инструментов можно получить у ребёнка без открытия Chrome.
 - **Точка входа:** `@playwright/mcp` не экспортирует `cli.js`. Путь: `dirname(require.resolve('@playwright/mcp/package.json')) + '/cli.js'`, запускать через `process.execPath`.
 - Запуск ребёнка: `--browser chrome --user-data-dir <dir> --output-dir <dir>`.
+- **Снапшоты в файл (найдено при реализации):** в 0.0.83 инструменты-действия (`browser_navigate`, `browser_click`…) не возвращают страницу, а пишут авто-снапшот в файл и отдают `[Snapshot](<путь относительно cwd ребёнка>)`. Inline страницу отдаёт только явный `browser_snapshot`. Шлюз запускает ребёнка с `cwd = output-dir` и переписывает такие ссылки в абсолютные; скилл `cast` велит вызывать `browser_snapshot` или читать файл.
 
 ## Факты о плагинах Claude Code (проверено по code.claude.com 29.09.2026)
 - `.claude-plugin/marketplace.json`: `{ "name": "netmate", "owner": {...}, "description": "...", "plugins": [{ "name": "cast", "source": "./", "description": "..." }] }`. Установочный id — `<plugin>@<marketplace name>`.
@@ -82,12 +83,13 @@ skills/list/SKILL.md             # /cast:list
 skills/remove/SKILL.md           # /cast:remove  (disable-model-invocation: true)
 skills/cast/SKILL.md             # для Claude: как работать с профилями
 src/paths.ts                     # ✅ написан: каталоги, project-id
-src/registry.ts                  # ✅ написан (черновик: типы проходят, тестов нет): три уровня, слияние, zod + yaml
-src/login-window.ts              # окно входа: launchPersistentContext, сбор доменов, ожидание закрытия
-src/gateway.ts                   # дочерние @playwright/mcp, прокси инструментов
-src/mcp.ts                       # MCP-сервер cast
-src/cli.ts                       # list --brief для хука
-test/*.test.ts                   # node:test
+src/registry.ts                  # ✅ написан, покрыт тестами: три уровня, слияние, zod + yaml
+src/login-window.ts              # ✅ окно входа: launchPersistentContext, сбор доменов, ожидание закрытия
+src/gateway.ts                   # ✅ дочерние @playwright/mcp, прокси инструментов
+src/mcp.ts                       # ✅ MCP-сервер cast
+src/cli.ts                       # ✅ list --brief для хука
+src/format.ts                    # ✅ блок list --brief
+test/*.test.ts                   # ✅ node:test: unit + интеграция с реальным Chrome
 dist/                            # tsc-вывод, коммитится
 package.json, tsconfig.json      # ✅ созданы, npm install выполнен; TS 7 требует "types": ["node"] (уже добавлено)
 PLAN.md, README.md

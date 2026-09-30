@@ -1,0 +1,12 @@
+{
+  "name": "netmate",
+  "owner": { "name": "bodpad" },
+  "description": "Plugins for testing multi-user web apps with Claude Code.",
+  "plugins": [
+    {
+      "name": "cast",
+      "source": "./",
+      "description": "Several logged-in browser users for Claude: one persistent Chrome profile per person."
+    }
+  ]
+}

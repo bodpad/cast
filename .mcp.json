@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "cast": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/dist/src/mcp.js"],
+      "env": { "CAST_PROJECT_DIR": "${CLAUDE_PROJECT_DIR}" }
+    }
+  }
+}

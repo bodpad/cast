@@ -2,3 +2,4 @@ node_modules/
 .playwright-mcp/
 .envrc
 .env
+dist/test/

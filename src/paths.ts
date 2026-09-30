@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { realpathSync } from 'node:fs';
+import { chmodSync, mkdirSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
 
@@ -14,7 +14,7 @@ export interface CastPaths {
 }
 
 export function resolvePaths(env: NodeJS.ProcessEnv = process.env): CastPaths {
-  const projectDir = realpathOrSelf(resolve(env.CAST_PROJECT_DIR || env.CLAUDE_PROJECT_DIR || process.cwd()));
+  const projectDir = realpathOrSelf(resolve(expanded(env.CAST_PROJECT_DIR) || expanded(env.CLAUDE_PROJECT_DIR) || process.cwd()));
   const configDir = env.CAST_CONFIG_DIR || join(env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'cast');
   const dataDir = env.CAST_DATA_DIR || join(env.XDG_DATA_HOME || join(homedir(), '.local', 'share'), 'cast');
   return { projectDir, projectId: projectIdFor(projectDir), configDir, dataDir };
@@ -45,6 +45,18 @@ export function profileDir(paths: CastPaths, scope: Scope, name: string): string
 
 export function outputDir(paths: CastPaths, name: string): string {
   return join(paths.dataDir, 'output', paths.projectId, name.toLowerCase());
+}
+
+/** Chrome profiles hold live sessions: keep them readable by the owner only. */
+export function ensurePrivateDir(dir: string): string {
+  mkdirSync(dir, { recursive: true, mode: 0o700 });
+  chmodSync(dir, 0o700);
+  return dir;
+}
+
+/** Ignores a "${VAR}" placeholder that the host left unexpanded in .mcp.json. */
+function expanded(value: string | undefined): string | undefined {
+  return value && !value.includes('${') ? value : undefined;
 }
 
 function realpathOrSelf(p: string): string {
