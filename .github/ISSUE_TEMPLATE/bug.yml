@@ -1,0 +1,47 @@
+name: Bug report
+description: Something in cast does not work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please remove emails, hostnames and anything private from what you paste. Never paste cookies, tokens or passwords.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did (the command or what you asked Claude), what you expected and what happened instead.
+    validations:
+      required: true
+  - type: input
+    id: cast
+    attributes:
+      label: cast version
+      description: "`version` in `/plugin` → cast, or in `~/.claude/plugins/…/cast/package.json`"
+    validations:
+      required: true
+  - type: input
+    id: chrome
+    attributes:
+      label: Chrome version
+      description: "`google-chrome --version`, and how it is installed (deb, snap, flatpak, `CAST_CHROME`)"
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Linux distribution and desktop
+      description: e.g. Ubuntu 24.04, GNOME on Wayland
+    validations:
+      required: true
+  - type: input
+    id: sso
+    attributes:
+      label: Sign-in provider
+      description: If the problem is with logging in, e.g. Microsoft Entra, Okta, Google
+  - type: textarea
+    id: log
+    attributes:
+      label: Chrome log
+      description: If Chrome failed to start, the last lines of `cast-chrome.log` in the profile folder (`dir` in `/cast:list`).
+      render: text
