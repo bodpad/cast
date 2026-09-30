@@ -27,7 +27,19 @@ Start Claude Code (`claude`) and type these at its prompt. They are Claude Code 
 
 From a terminal instead: `claude plugin marketplace add bodpad/cast`, then `claude plugin install cast@bodpad`, then start `claude`.
 
-To update, in a Claude Code session: `/plugin marketplace update bodpad`, then `/plugin update cast@bodpad`.
+## Update
+
+In a Claude Code session, fetch the latest marketplace listing, update the plugin and reload it:
+
+```
+/plugin marketplace update bodpad
+/plugin update cast@bodpad
+/reload-plugins
+```
+
+From a terminal instead: `claude plugin marketplace update bodpad`, then `claude plugin update cast@bodpad`, then restart `claude`.
+
+Profiles and logins are kept. What changed in each version: [CHANGELOG.md](CHANGELOG.md).
 
 ## Get started
 
