@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.1 — 2026-09-30
+
+### Changed
+- Clear errors when Chrome cannot start, each with what to do: Chrome not installed, no display (e.g. plain SSH), display not reachable, profile already open, not Linux. Otherwise the error quotes Chrome's last message; its full output is in `cast-chrome.log` in the profile folder.
+- A login window whose Chrome exits right away is reported as an error instead of an empty login.
+
 ## 0.6.0 — 2026-09-30
 
 ### Changed

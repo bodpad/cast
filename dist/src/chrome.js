@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, readlinkSync, rmSync, writeFileSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readlinkSync, rmSync, writeFileSync } from 'node:fs';
 import { hostname } from 'node:os';
 import { join } from 'node:path';
 import { ensurePrivateDir } from './paths.js';
@@ -15,6 +15,8 @@ const KEEP_BACKGROUND_TABS_ALIVE = [
  * launch flags. --password-store=basic keeps cookie encryption the same in every cast window.
  */
 export async function launchChrome(dir, opts = {}) {
+    const headless = process.env.CAST_TEST_HEADLESS === '1';
+    assertCanRun(headless);
     ensurePrivateDir(dir);
     assertNotRunning(dir);
     const portFile = join(dir, 'DevToolsActivePort');
@@ -34,10 +36,14 @@ export async function launchChrome(dir, opts = {}) {
         ...(opts.look ? [`--window-name=${opts.look.title}`] : []),
         // Background tabs keep rendering, so Claude can act in any tab (as Playwright's own launch does).
         ...(opts.debugPort ? ['--remote-debugging-port=0', ...KEEP_BACKGROUND_TABS_ALIVE] : []),
-        ...(process.env.CAST_TEST_HEADLESS === '1' ? ['--headless=new'] : []),
+        ...(headless ? ['--headless=new'] : []),
         ...(opts.urls ?? []),
     ];
-    const child = spawn(chromeExecutable(), args, { stdio: 'ignore', detached: opts.detached });
+    // Chrome's own output, to explain a Chrome that exits right away.
+    const log = join(dir, LOG_FILE);
+    const out = openSync(log, 'w', 0o600);
+    const child = spawn(chromeExecutable(), args, { stdio: ['ignore', out, out], detached: opts.detached });
+    closeSync(out);
     if (opts.detached)
         child.unref();
     let spawnError;
@@ -75,12 +81,42 @@ export async function launchChrome(dir, opts = {}) {
             await new Promise(r => setTimeout(r, 100));
         }
         await chrome.close();
-        throw spawnError ? notInstalled() : new ChromeError('Chrome did not start.');
+        throw spawnError ? notInstalled() : startFailure(log, gone);
     }
     // Until the lock exists, isRunning() would report a login window that is still starting as closed.
     for (let i = 0; i < 100 && !gone && !isRunning(dir); i++)
         await new Promise(r => setTimeout(r, 100));
+    if (gone)
+        throw startFailure(log, true);
     return chrome;
+}
+const LOG_FILE = 'cast-chrome.log';
+/** Environment problems, each in one sentence with what to do. */
+function assertCanRun(headless) {
+    if (process.platform !== 'linux') {
+        throw new ChromeError(`cast works on Linux only for now (this is ${process.platform}).`);
+    }
+    if (!headless && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY) {
+        throw new ChromeError('No display to show Chrome on (DISPLAY and WAYLAND_DISPLAY are not set): start Claude Code from a terminal in your desktop session, not over plain SSH.');
+    }
+}
+/** Why Chrome did not come up, from the last lines it printed. */
+function startFailure(log, exited) {
+    if (!exited)
+        return new ChromeError(`Chrome did not start within 20 seconds. Its output is in ${log}.`);
+    let text = '';
+    try {
+        text = readFileSync(log, 'utf8');
+    }
+    catch { /* no output */ }
+    if (/Missing X server|cannot open display|Failed to connect to Wayland/i.test(text)) {
+        return new ChromeError('Chrome cannot open a window: the display is not reachable. Start Claude Code from a terminal in your desktop session, not over plain SSH.');
+    }
+    if (/profile appears to be in use|ProcessSingleton/i.test(text)) {
+        return new ChromeError('This profile is already open in another Chrome window (a login window or another Claude session). Close that window and try again.');
+    }
+    const last = text.split('\n').map(l => l.replace(/^\[[^\]]*\]\s*/, '').trim()).filter(l => l && !/^Read channel/.test(l)).slice(-2).join(' ');
+    return new ChromeError(`Chrome exited right after starting${last ? `: ${last}` : ''}. Its output is in ${log}.`);
 }
 export function chromeExecutable() {
     if (process.env.CAST_CHROME)
@@ -143,8 +179,8 @@ export function isRunning(dir) {
 /** A second Chrome on a busy profile would hand its tabs to the running one and exit, so refuse early. */
 export function assertNotRunning(dir) {
     if (isRunning(dir))
-        throw new ChromeError('This profile is already open in another Chrome window (another Claude session or a login window). Close that window and try again.');
+        throw new ChromeError('This profile is already open in another Chrome window (a login window or another Claude session). Close that window and try again.');
 }
 function notInstalled() {
-    return new ChromeError('Cannot start Google Chrome. Is it installed (google-chrome --version)? Set CAST_CHROME to its path if it lives elsewhere.');
+    return new ChromeError(`Google Chrome is not installed (${chromeExecutable()} not found): install it from https://www.google.com/chrome/, or set CAST_CHROME to its path.`);
 }

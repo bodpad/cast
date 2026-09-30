@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
-import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, test } from 'node:test';
-import { applyColor } from '../src/chrome.js';
+import { applyColor, launchChrome } from '../src/chrome.js';
 import { briefList, windowLook } from '../src/format.js';
 import { normalizeSite, pageUrl } from '../src/login-window.js';
 import { classifyHosts, isSignInHost } from '../src/sites.js';
@@ -202,6 +202,44 @@ describe('window look', () => {
     writeFileSync(file, '{broken');
     applyColor(dir, '#43a047');
     assert.equal(readFileSync(file, 'utf8'), '{broken', 'a file Chrome may still repair is left alone');
+  });
+});
+
+describe('chrome start errors', () => {
+  /** Runs `fn` with these environment variables (undefined unsets one), then restores them. */
+  async function withEnv(vars: Record<string, string | undefined>, fn: () => Promise<unknown>) {
+    const saved = Object.fromEntries(Object.keys(vars).map(k => [k, process.env[k]]));
+    const set = (v: Record<string, string | undefined>) => {
+      for (const [k, x] of Object.entries(v)) if (x === undefined) delete process.env[k]; else process.env[k] = x;
+    };
+    set(vars);
+    try { await fn(); } finally { set(saved); }
+  }
+
+  /** A fake Chrome that prints `output` and exits. */
+  function fakeChrome(output: string): string {
+    const file = join(sb.root, 'fake-chrome.sh');
+    writeFileSync(file, `#!/bin/sh\necho '${output}' >&2\nexit 1\n`);
+    chmodSync(file, 0o755);
+    return file;
+  }
+
+  const dir = () => join(sb.root, 'profile');
+
+  test('Chrome not installed', () => withEnv({ CAST_CHROME: join(sb.root, 'nope') }, () =>
+    assert.rejects(launchChrome(dir()), /Google Chrome is not installed .*CAST_CHROME/)));
+
+  test('no display', () => withEnv({ CAST_TEST_HEADLESS: undefined, DISPLAY: undefined, WAYLAND_DISPLAY: undefined }, () =>
+    assert.rejects(launchChrome(dir()), /No display .*not over plain SSH/)));
+
+  test('display not reachable', () => withEnv({ CAST_TEST_HEADLESS: '1', CAST_CHROME: fakeChrome('[1:1:0930/1:ERROR:ozone_platform_x11.cc:257] Missing X server or $DISPLAY') }, () =>
+    assert.rejects(launchChrome(dir()), /display is not reachable/)));
+
+  test('any other exit shows what Chrome said', async () => {
+    await withEnv({ CAST_TEST_HEADLESS: '1', CAST_CHROME: fakeChrome('[1:1:0930/1:FATAL:x.cc:1] Something broke') }, async () => {
+      await assert.rejects(launchChrome(dir()), /exited right after starting: Something broke\. Its output is in .*cast-chrome\.log/);
+      await assert.rejects(launchChrome(dir(), { debugPort: true }), /exited right after starting: Something broke/);
+    });
   });
 });
 

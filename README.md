@@ -93,7 +93,7 @@ Uninstalling keeps profiles. To delete everything, remove both folders.
 
 ## Troubleshooting
 
-- **No window / Chrome not found:** check `google-chrome --version`; set `CAST_CHROME` if Chrome lives elsewhere. Start Claude Code from a desktop session (`DISPLAY` set), not plain SSH.
+- **No window / Chrome not found:** check `google-chrome --version`; set `CAST_CHROME` if Chrome lives elsewhere. Start Claude Code from a desktop session (`DISPLAY` set), not plain SSH. When Chrome exits right after starting, cast shows its last message; the full output is in `cast-chrome.log` in the profile folder (`dir` in `cast_list`).
 - **"Profile is already open":** one profile, one Chrome. Close the other window (a login window or another Claude session).
 - **SSO blocks the login:** log in only in the `/cast:add` or `/cast:login` window; it is a plain Chrome nothing controls.
 - **Claude says the login window is still open:** close it (the window titled `… · log in · cast`), then tell Claude.
