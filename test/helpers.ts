@@ -41,6 +41,12 @@ export async function startSite(): Promise<TestSite> {
   const server: Server = createServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://x');
     hits.push(url.pathname + url.search);
+    if (url.pathname === '/hop') {
+      // An SSO-like redirect through another host.
+      res.writeHead(302, { Location: url.searchParams.get('to') ?? '/' });
+      res.end();
+      return;
+    }
     if (url.pathname === '/probe') {
       res.writeHead(200, { 'Content-Type': 'text/html' });
       res.end('<script>fetch("/report?webdriver=" + navigator.webdriver)</script>');

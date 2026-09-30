@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import initSqlJs from 'sql.js';
 import { ensurePrivateDir } from './paths.js';
+import { classifyHosts } from './sites.js';
 
 export interface LoginWindow {
   /** Tests only (CAST_TEST_HEADLESS=1): DevTools endpoint to play the human. */
@@ -24,8 +25,10 @@ export interface LoginWindowOptions {
 }
 
 export interface LoginResult {
-  /** Hosts (with port) of the pages visited while the window was open, in first-visit order. */
-  domains: string[];
+  /** Hosts (with port) where the person landed while the window was open, in first-visit order. */
+  sites: string[];
+  /** Sign-in pages and redirect-only hops visited meanwhile. */
+  signIn: string[];
   timedOut: boolean;
 }
 
@@ -95,7 +98,7 @@ export async function openLoginWindow(dir: string, opts: LoginWindowOptions): Pr
     if (spawnError) {
       throw new LoginWindowError('Cannot start Google Chrome. Is it installed (google-chrome --version)? Set CAST_CHROME to its path if it lives elsewhere.');
     }
-    return { domains: await visitedHosts(dir, startedUs), timedOut };
+    return { ...await visitedHosts(dir, startedUs), timedOut };
   } catch (e) {
     chrome.kill('SIGINT');
     throw e;
@@ -153,23 +156,29 @@ async function waitForPort(portFile: string, exited: Promise<void>): Promise<str
   throw new LoginWindowError('Chrome did not start.');
 }
 
+/** Chrome page transition qualifier: the visit ended a redirect chain, i.e. the page was shown. */
+const CHAIN_END = 0x20000000;
+
 /** Hosts of pages visited since `sinceUs`, from the profile's History database (Chrome flushes it on exit). */
-async function visitedHosts(dir: string, sinceUs: number): Promise<string[]> {
+async function visitedHosts(dir: string, sinceUs: number): Promise<{ sites: string[]; signIn: string[] }> {
   const file = join(dir, 'Default', 'History');
-  if (!existsSync(file)) return [];
+  if (!existsSync(file)) return { sites: [], signIn: [] };
   const SQL = await initSqlJs();
   const db = new SQL.Database(readFileSync(file));
   try {
     const rows = db.exec(
-      'SELECT u.url FROM visits v JOIN urls u ON u.id = v.url WHERE v.visit_time >= ? ORDER BY v.visit_time',
+      'SELECT u.url, v.transition FROM visits v JOIN urls u ON u.id = v.url WHERE v.visit_time >= ? ORDER BY v.visit_time',
       [sinceUs],
     );
     const hosts = new Set<string>();
-    for (const [url] of rows[0]?.values ?? []) {
+    const landed = new Set<string>();
+    for (const [url, transition] of rows[0]?.values ?? []) {
       const host = httpHost(String(url));
-      if (host) hosts.add(host);
+      if (!host) continue;
+      hosts.add(host);
+      if (Number(transition) & CHAIN_END) landed.add(host);
     }
-    return [...hosts];
+    return classifyHosts([...hosts], landed);
   } finally {
     db.close();
   }

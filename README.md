@@ -2,6 +2,8 @@
 
 **Several logged-in browser users for [Claude Code](https://claude.com/claude-code).**
 
+A Claude Code plugin for **multi-user browser testing**: one persistent Chrome profile per person, several logged-in sessions open at once, driven by Claude through [Playwright MCP](https://github.com/microsoft/playwright-mcp). Works with corporate SSO (Microsoft Entra, Okta, Google) because you log in yourself in a regular Chrome.
+
 You are building an app where people interact: a chat, a marketplace, an approval flow. To test it, you need a browser per person, each logged in to that person's accounts. cast gives Claude exactly that: one persistent Chrome profile per person. You log in once, and Claude opens those browsers itself, several at a time, and works in them.
 
 ```
@@ -23,6 +25,7 @@ Claude: opens Sam's and Elon's windows (already logged in), sends as Sam, checks
 - [Commands](#commands)
 - [Asking Claude to use profiles](#asking-claude-to-use-profiles)
 - [Sharing profiles with your team](#sharing-profiles-with-your-team)
+- [How cast compares](#how-cast-compares)
 - [Where cast keeps data](#where-cast-keeps-data)
 - [Privacy and safety](#privacy-and-safety)
 - [Troubleshooting](#troubleshooting)
@@ -71,7 +74,7 @@ Email and description are optional; they help Claude pick the right person ("the
 - On MFA prompts choose **"Stay signed in"**, otherwise the session expires quickly.
 - **Close the window** when you are done. That is the signal for cast. Keep the Claude Code session open until then.
 
-**3. Confirm the sites.** cast shows the domains you visited (e.g. `localhost:3000`, `login.microsoftonline.com`, `outlook.office.com`) and asks which to remember. Claude uses this list to know where each person works.
+**3. Confirm the sites.** cast suggests the sites where you landed (e.g. `localhost:3000`, `teams.microsoft.com`) and lists sign-in pages and redirects (`login.microsoftonline.com`, `sso.…`) separately, without suggesting them. Claude uses the saved list to know where each person works.
 
 **4. Repeat for everyone else** (`/cast:add Elon …`).
 
@@ -138,6 +141,19 @@ Commit it. A teammate who pulls the repository sees `sender` in Claude's list ma
 | `user` | you, in all your projects | a personal account you use everywhere, e.g. your work mailbox |
 
 If the same name exists in several scopes, **local wins over project, project over user**.
+
+## How cast compares
+
+| | cast | Playwright MCP alone | Auth-state plugins (`storageState`) | playwright-cli sessions |
+|---|---|---|---|---|
+| Several users logged in **at the same time** | yes, one window per person | one browser per server | one browser, roles switched | yes, by session name |
+| Full Chrome profile (IndexedDB, service workers, "trusted device" for MFA) | yes | yes, one profile | cookies and localStorage only | yes, with `--persistent` |
+| Corporate SSO with bot checks at login | yes: you log in in a plain, non-automated Chrome | may be blocked (automated browser) | varies by plugin | may be blocked (automated browser) |
+| Claude knows who is who (name, email, role, sites) at session start | yes | no | per role name | no |
+| Claude never logs in; asks you when a session expires | yes | — | — | — |
+| Team slots committed to the repo, credentials stay personal | yes | no | no | no |
+
+Use plain Playwright MCP for single-user browsing. Use cast when a test involves several people, or accounts behind SSO.
 
 ## Where cast keeps data
 

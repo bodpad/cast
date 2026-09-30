@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import initSqlJs from 'sql.js';
 import { ensurePrivateDir } from './paths.js';
+import { classifyHosts } from './sites.js';
 export class LoginWindowError extends Error {
 }
 const DEFAULT_TIMEOUT_MS = 30 * 60 * 1000;
@@ -65,7 +66,7 @@ export async function openLoginWindow(dir, opts) {
         if (spawnError) {
             throw new LoginWindowError('Cannot start Google Chrome. Is it installed (google-chrome --version)? Set CAST_CHROME to its path if it lives elsewhere.');
         }
-        return { domains: await visitedHosts(dir, startedUs), timedOut };
+        return { ...await visitedHosts(dir, startedUs), timedOut };
     }
     catch (e) {
         chrome.kill('SIGINT');
@@ -134,22 +135,28 @@ async function waitForPort(portFile, exited) {
     }
     throw new LoginWindowError('Chrome did not start.');
 }
+/** Chrome page transition qualifier: the visit ended a redirect chain, i.e. the page was shown. */
+const CHAIN_END = 0x20000000;
 /** Hosts of pages visited since `sinceUs`, from the profile's History database (Chrome flushes it on exit). */
 async function visitedHosts(dir, sinceUs) {
     const file = join(dir, 'Default', 'History');
     if (!existsSync(file))
-        return [];
+        return { sites: [], signIn: [] };
     const SQL = await initSqlJs();
     const db = new SQL.Database(readFileSync(file));
     try {
-        const rows = db.exec('SELECT u.url FROM visits v JOIN urls u ON u.id = v.url WHERE v.visit_time >= ? ORDER BY v.visit_time', [sinceUs]);
+        const rows = db.exec('SELECT u.url, v.transition FROM visits v JOIN urls u ON u.id = v.url WHERE v.visit_time >= ? ORDER BY v.visit_time', [sinceUs]);
         const hosts = new Set();
-        for (const [url] of rows[0]?.values ?? []) {
+        const landed = new Set();
+        for (const [url, transition] of rows[0]?.values ?? []) {
             const host = httpHost(String(url));
-            if (host)
-                hosts.add(host);
+            if (!host)
+                continue;
+            hosts.add(host);
+            if (Number(transition) & CHAIN_END)
+                landed.add(host);
         }
-        return [...hosts];
+        return classifyHosts([...hosts], landed);
     }
     finally {
         db.close();

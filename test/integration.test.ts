@@ -30,10 +30,17 @@ after(async () => {
 async function humanLogin(name: string, user: string) {
   addProfile(sb.paths, name, 'local', {});
   const p = findProfile(sb.paths, name)!;
+  const from = site.hits.length;
   return openLoginWindow(p.dir, {
     name,
-    onReady: w => visitAndClose(w, p.dir, `${site.url}/login?user=${user}`, () => site.hits.includes(`/login?user=${user}`)),
+    // Like SSO: pass through a sign-in host (localhost) that redirects back to the app (127.0.0.1).
+    onReady: w => visitAndClose(w, p.dir, `${ssoHost()}/hop?to=${encodeURIComponent(`${site.url}/login?user=${user}`)}`,
+      () => site.hits.slice(from).includes('/')),
   });
+}
+
+function ssoHost() {
+  return site.url.replace('127.0.0.1', 'localhost');
 }
 
 /**
@@ -74,10 +81,11 @@ function assertNoSecrets(output: string) {
 }
 
 describe('login window', () => {
-  test('collects main-frame domains and finishes when the window closes', async () => {
+  test('suggests the sites the user landed on, not redirect hops, and finishes when the window closes', async () => {
     const result = await humanLogin('Sam', 'sam');
     assert.equal(result.timedOut, false);
-    assert.deepEqual(result.domains, [new URL(site.url).host]);
+    assert.deepEqual(result.sites, [new URL(site.url).host]);
+    assert.deepEqual(result.signIn, [new URL(ssoHost()).host]);
     assert.equal(statSync(findProfile(sb.paths, 'Sam')!.dir).mode & 0o777, 0o700);
   });
 
@@ -102,7 +110,7 @@ describe('login window', () => {
     addProfile(sb.paths, 'Idle', 'local', {});
     const result = await openLoginWindow(findProfile(sb.paths, 'Idle')!.dir, { name: 'Idle', timeoutMs: 1500 });
     assert.equal(result.timedOut, true);
-    assert.deepEqual(result.domains, []);
+    assert.deepEqual(result.sites, []);
   });
 });
 

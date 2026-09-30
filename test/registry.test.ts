@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, test } from 'node:test';
 import { briefList } from '../src/format.js';
 import { normalizeSite } from '../src/login-window.js';
+import { classifyHosts, isSignInHost } from '../src/sites.js';
 import { ensurePrivateDir, listFile, projectIdFor, resolvePaths } from '../src/paths.js';
 import {
   RegistryError, addProfile, findProfile, loadProfiles, removeProfile, updateProfile, validateName,
@@ -143,6 +144,19 @@ describe('format', () => {
       + '- Sam (local) sam@email.com — sender. Sites: localhost:3000, outlook.office.com',
     );
     assert.equal(briefList([]), '');
+  });
+
+  test('sign-in hosts are told apart from sites', () => {
+    for (const h of ['login.microsoftonline.com', 'sso.godaddy.com', 'accounts.google.com', 'acme.okta.com', 'login.live.com']) {
+      assert.equal(isSignInHost(h), true, h);
+    }
+    for (const h of ['teams.microsoft.com', 'outlook.office.com', 'localhost:3000', 'platform-dev.example.com']) {
+      assert.equal(isSignInHost(h), false, h);
+    }
+    assert.deepEqual(
+      classifyHosts(['sso.godaddy.com', 'hop.example.com', 'app.example.com'], new Set(['sso.godaddy.com', 'app.example.com'])),
+      { sites: ['app.example.com'], signIn: ['sso.godaddy.com', 'hop.example.com'] },
+    );
   });
 
   test('sites are normalized to host[:port]', () => {

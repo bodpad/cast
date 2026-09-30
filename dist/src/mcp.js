@@ -12,7 +12,7 @@ const HUMAN_ONLY = 'Call ONLY when the user explicitly asked for it (/cast:add, 
 const CAST_TOOLS = [
     {
         name: 'cast_list',
-        description: 'List cast browser profiles (one per person): name, scope, email, description, known sites, whether it is set up on this machine (ready) and currently open.',
+        description: 'List cast browser profiles (one per person): name, scope, email, description, known sites, whether it is set up on this machine (ready), currently open, and the Chrome profile folder (dir). Never start Chrome on that folder by hand: use /cast:login, which launches it with the right flags.',
         inputSchema: { type: 'object', properties: {} },
     },
     {
@@ -97,7 +97,7 @@ async function castTool(paths, gateway, tool, args, progress) {
             const open = new Set(gateway.openNames().map(n => n.toLowerCase()));
             const profiles = loadProfiles(paths).map(p => ({
                 name: p.name, scope: p.scope, email: p.email, description: p.description, sites: p.sites,
-                ready: p.ready, open: open.has(p.name.toLowerCase()),
+                ready: p.ready, open: open.has(p.name.toLowerCase()), dir: p.dir,
                 ...(p.ready ? {} : { note: `Not set up on this machine: ask the user to run /cast:add ${p.name}` }),
             }));
             return ok(profiles.length ? JSON.stringify(profiles, null, 2) : 'No cast profiles yet. The user can create one with /cast:add <name>.');
@@ -126,7 +126,7 @@ async function castTool(paths, gateway, tool, args, progress) {
             try {
                 const result = await loginWindow(gateway, p, progress);
                 updateProfile(paths, p.name, { lastLoginAt: new Date().toISOString() });
-                return ok(loginReport(p, result.domains, result.timedOut, 'visited'));
+                return ok(loginReport(p, result));
             }
             catch (e) {
                 if (!before)
@@ -138,8 +138,7 @@ async function castTool(paths, gateway, tool, args, progress) {
             const p = requireReady(paths, str(args, 'name'));
             const result = await loginWindow(gateway, p, progress);
             updateProfile(paths, p.name, { lastLoginAt: new Date().toISOString() });
-            const fresh = result.domains.filter(d => !p.sites.includes(d));
-            return ok(loginReport(p, fresh, result.timedOut, 'new'));
+            return ok(loginReport(p, { ...result, sites: result.sites.filter(d => !p.sites.includes(d)) }));
         }
         case 'cast_set_sites': {
             const raw = args.sites;
@@ -173,14 +172,15 @@ async function loginWindow(gateway, p, progress) {
         clearInterval(heartbeat);
     }
 }
-function loginReport(p, domains, timedOut, kind) {
+function loginReport(p, r) {
     const lines = [
-        timedOut
+        r.timedOut
             ? `The login window for "${p.name}" was open too long and cast closed it. Logins made so far are kept.`
             : `The user closed the login window for "${p.name}".`,
-        domains.length ? `${kind === 'new' ? 'New domains' : 'Domains visited'}: ${domains.join(', ')}` : `No ${kind} domains were visited.`,
+        `Suggested sites (where the user landed${p.sites.length ? ', not saved yet' : ''}): ${r.sites.join(', ') || '(none)'}`,
+        `Sign-in pages and redirects (not suggested; Claude never logs in itself): ${r.signIn.join(', ') || '(none)'}`,
         `Currently saved sites: ${p.sites.join(', ') || '(none)'}`,
-        'Ask the user which domains to keep, then call cast_set_sites with the full list.',
+        'Show the suggested sites and ask which to keep (the user may also name the app they logged in to), then call cast_set_sites with the full list.',
     ];
     return lines.join('\n');
 }

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.2 — 2026-09-30
+
+### Changed
+- After login, cast suggests the sites where you landed and lists sign-in pages and redirect hops (`login.microsoftonline.com`, `sso.…`, Okta, Google…) separately instead of suggesting them.
+- `cast_list` shows each profile's Chrome folder.
+- `/cast:add` hint shows the name rule; invalid names get a suggested valid one.
+- README: keywords and a comparison with similar tools.
+
 ## 0.1.1 — 2026-09-30
 
 ### Fixed
