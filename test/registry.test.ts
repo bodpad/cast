@@ -3,11 +3,11 @@ import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, test } from 'node:test';
 import { briefList } from '../src/format.js';
-import { normalizeSite } from '../src/login-window.js';
+import { normalizeSite, pageUrl } from '../src/login-window.js';
 import { classifyHosts, isSignInHost } from '../src/sites.js';
 import { ensurePrivateDir, listFile, projectIdFor, resolvePaths } from '../src/paths.js';
 import {
-  RegistryError, addProfile, findProfile, loadProfiles, removeProfile, updateProfile, validateName,
+  RegistryError, addProfile, editProfile, findProfile, loadProfiles, removeProfile, updateProfile, validateName,
 } from '../src/registry.js';
 import { type Sandbox, sandbox } from './helpers.js';
 
@@ -127,6 +127,25 @@ describe('registry', () => {
     assert.throws(() => removeProfile(sb.paths, 'Elon'), /No profile/);
   });
 
+  test('edit sets and clears email and description, keeping the rest', () => {
+    addProfile(sb.paths, 'Ali', 'local', { email: 'a@x.com' });
+    updateProfile(sb.paths, 'Ali', { sites: ['app.example.com'] });
+    const p = editProfile(sb.paths, 'ali', { description: '  vendor, Insygna org ' });
+    assert.equal(p.description, 'vendor, Insygna org');
+    assert.equal(p.email, 'a@x.com');
+    assert.deepEqual(p.sites, ['app.example.com']);
+    assert.equal(editProfile(sb.paths, 'Ali', { email: '' }).email, undefined);
+    assert.throws(() => editProfile(sb.paths, 'Nobody', { description: 'x' }), /No profile/);
+  });
+
+  test('edit of a project profile keeps the team slot unchanged', () => {
+    writeProjectSlots({ sender: { description: 'writes messages' } });
+    addProfile(sb.paths, 'sender', 'local', {});
+    assert.equal(editProfile(sb.paths, 'sender', { description: 'writes in Teams' }).description, 'writes in Teams');
+    assert.match(readFileSync(listFile(sb.paths, 'project'), 'utf8'), /description: writes messages/);
+    assert.equal(editProfile(sb.paths, 'sender', { description: '' }).description, 'writes messages');
+  });
+
   test('reports broken yaml as RegistryError', () => {
     mkdirSync(join(sb.paths.configDir), { recursive: true });
     writeFileSync(listFile(sb.paths, 'user'), 'profiles: [1, 2');
@@ -144,6 +163,8 @@ describe('format', () => {
       + '- Sam (local) sam@email.com — sender. Sites: localhost:3000, outlook.office.com',
     );
     assert.equal(briefList([]), '');
+    addProfile(sb.paths, 'Ali', 'local', {});
+    assert.match(briefList(loadProfiles(sb.paths)), /- Ali \(local\) — role unknown \(no description\)\./);
   });
 
   test('sign-in hosts are told apart from sites', () => {
@@ -163,6 +184,7 @@ describe('format', () => {
     assert.equal(normalizeSite('https://Outlook.Office.com/mail/'), 'outlook.office.com');
     assert.equal(normalizeSite('localhost:3000'), 'localhost:3000');
     assert.equal(normalizeSite('  '), undefined);
+    assert.equal(pageUrl('https://App.example.com:8443/vendor/home?code=abc#x'), 'https://app.example.com:8443/vendor/home');
   });
 });
 

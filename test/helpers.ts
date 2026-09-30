@@ -34,7 +34,7 @@ export interface TestSite {
   close(): Promise<void>;
 }
 
-/** /login?user=X sets a persistent session cookie; / greets the user and has a confirm() button. */
+/** /login?user=X[&to=path] sets a persistent session cookie; other pages greet the user and have a confirm() button. */
 export async function startSite(): Promise<TestSite> {
   const secrets: string[] = [];
   const hits: string[] = [];
@@ -58,7 +58,7 @@ export async function startSite(): Promise<TestSite> {
       secrets.push(token);
       res.writeHead(302, {
         'Set-Cookie': [`user=${user}; Max-Age=3600; Path=/`, `session=${token}; Max-Age=3600; Path=/; HttpOnly`],
-        Location: '/',
+        Location: url.searchParams.get('to') ?? '/',
       });
       res.end();
       return;

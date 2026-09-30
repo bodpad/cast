@@ -10,7 +10,7 @@ export function briefList(profiles: Profile[]): string {
     }
     let line = `- ${p.name} (${p.scope})`;
     if (p.email) line += ` ${p.email}`;
-    if (p.description) line += ` — ${p.description}.`;
+    line += p.description ? ` — ${p.description}.` : ' — role unknown (no description).';
     if (p.sites.length) line += ` Sites: ${p.sites.join(', ')}`;
     return line;
   });

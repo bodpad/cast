@@ -145,6 +145,8 @@ PLAN.md, README.md
 - `cast_open(profile, url?)` and `cast_close(profile)`.
 - `cast_add(name, email?, description?, scope?)`: blocks until the window is closed, returns the domains. The tool description says: "ONLY when the user explicitly asked (/cast:add); a human must log in".
 - `cast_login(name)`: the same for an existing profile, returns new domains.
+- `cast_add` and `cast_login` also return the last page shown on each suggested site (origin + path, no query; page title). The path often tells the role (`/vendor` vs `/program-manager/home`), so when the profile has no description Claude suggests one and saves it only after the user confirms (0.3.0).
+- `cast_update(name, email?, description?)`: change them without a new login; `""` clears. For a project profile the description goes to the developer's local list, the committed slot stays.
 - `cast_set_sites(name, sites[])` and `cast_remove(name)`; `remove` deletes the entry and the profile folder.
 - Proxied `browser_*` with a required `profile`.
 - Errors are returned as text with `isError: true`.
@@ -158,9 +160,9 @@ cast: browser users available (open with cast_open / browser_* tools with profil
 ```
 
 ### Skills
-- `add`, `login`, `list`, `remove` — thin instructions for Claude. `add`: parse `$ARGUMENTS`; if email or description is missing, ask for both in one short question (skippable); tell the person a window is about to open; call `cast_add`; show the domains and ask which to keep; call `cast_set_sites`.
+- `add`, `login`, `edit`, `list`, `remove` — thin instructions for Claude. `add`: parse `$ARGUMENTS`; if the description is missing, ask who this person is in the tests (and the email); tell the person a window is about to open; call `cast_add`; in one message ask which domains to keep and, if there is still no description, confirm one suggested from the landing pages; call `cast_set_sites` and `cast_update`.
 - `cast` (model-invoked):
-  - choose a profile by name and description;
+  - choose a profile by name and description, never guess a role from the profile name, email or sites; if no description or several match, ask once and save the answer with `cast_update`;
   - two-person scenario: open both, act in one, verify in the other, including in mail;
   - dialogs via `browser_handle_dialog`;
   - session expired → do not log in, ask for `/cast:login <name>`;

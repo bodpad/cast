@@ -8,7 +8,7 @@ import { type LoginResult, openLoginWindow, normalizeSite } from './login-window
 import { type CastPaths, type Scope, outputDir, resolvePaths } from './paths.js';
 import { VERSION } from './version.js';
 import {
-  type Profile, RegistryError, addProfile, findProfile, loadProfiles, removeProfile, requireReady, updateProfile,
+  type Profile, RegistryError, addProfile, editProfile, findProfile, loadProfiles, removeProfile, requireReady, updateProfile,
 } from './registry.js';
 
 const HUMAN_ONLY = 'Call ONLY when the user explicitly asked for it (/cast:add, /cast:login): a human must log in in the window. Never call it on your own because a session expired.';
@@ -41,7 +41,7 @@ const CAST_TOOLS: Tool[] = [
       properties: {
         name: { type: 'string', description: 'Profile name: letters, digits, "-" or "_"' },
         email: { type: 'string' },
-        description: { type: 'string', description: 'Role of this person in tests, e.g. "sender"' },
+        description: { type: 'string', description: 'Who this person is in tests, e.g. "sender" or "vendor, Insygna org". Only what the user gave.' },
         scope: { type: 'string', enum: ['local', 'project', 'user'], description: 'local (default): this project only; project: shared team slot in .claude/cast.yaml; user: all projects' },
       },
       required: ['name'],
@@ -59,6 +59,15 @@ const CAST_TOOLS: Tool[] = [
       type: 'object',
       properties: { name: PROFILE_PARAM, sites: { type: 'array', items: { type: 'string' } } },
       required: ['name', 'sites'],
+    },
+  },
+  {
+    name: 'cast_update',
+    description: 'Change the email or description of a profile without logging in again. The description says who this person is in tests (e.g. "vendor, Insygna org"); Claude picks profiles by it. Save only what the user stated or confirmed, never a guess. An empty string clears a field.',
+    inputSchema: {
+      type: 'object',
+      properties: { name: PROFILE_PARAM, email: { type: 'string' }, description: { type: 'string' } },
+      required: ['name'],
     },
   },
   {
@@ -152,6 +161,14 @@ async function castTool(paths: CastPaths, gateway: Gateway, tool: string, args: 
       const p = updateProfile(paths, str(args, 'name'), { sites });
       return ok(`Sites of "${p.name}": ${p.sites.join(', ') || '(none)'}`);
     }
+    case 'cast_update': {
+      const fields = { email: rawStr(args, 'email'), description: rawStr(args, 'description') };
+      if (fields.email === undefined && fields.description === undefined) throw new RegistryError('Pass "email" or "description" to change.');
+      const p = editProfile(paths, str(args, 'name'), fields);
+      const slot = p.scope === 'project' && fields.description !== undefined
+        ? ' The description is kept for you only; the team slot in .claude/cast.yaml is unchanged.' : '';
+      return ok(`Profile "${p.name}": email ${p.email ?? '(none)'}, description ${p.description ?? '(none)'}.${slot}`);
+    }
     case 'cast_remove': {
       const name = str(args, 'name');
       await gateway.close(name);
@@ -187,6 +204,15 @@ function loginReport(p: Profile, r: LoginResult): string {
     `Currently saved sites: ${p.sites.join(', ') || '(none)'}`,
     'Show the suggested sites and ask which to keep (the user may also name the app they logged in to), then call cast_set_sites with the full list.',
   ];
+  if (r.landings.length) {
+    lines.push('Last page the user saw on each site (the path and title often tell the role):');
+    for (const l of r.landings) lines.push(`- ${l.url}${l.title ? ` — "${l.title}"` : ''}`);
+  }
+  lines.push(p.description
+    ? `Saved description: "${p.description}".`
+    : 'The profile has no description, so Claude cannot tell who this person is. In the same message, ask who this person is in the tests, '
+      + 'suggesting a short description from the pages above if they show a role (e.g. "vendor on platform-dev (/vendor)"). '
+      + 'Call cast_update only with what the user answered or confirmed; if they decline, save nothing.');
   return lines.join('\n');
 }
 
@@ -197,6 +223,14 @@ export function gatewayProfile(paths: CastPaths, p: Profile): GatewayProfile {
 function str(args: Args, key: string): string {
   const v = args[key];
   if (typeof v !== 'string' || !v) throw new RegistryError(`Missing "${key}".`);
+  return v;
+}
+
+/** A string argument as given, including "" (which clears a field); undefined when absent. */
+function rawStr(args: Args, key: string): string | undefined {
+  const v = args[key];
+  if (v === undefined) return undefined;
+  if (typeof v !== 'string') throw new RegistryError(`"${key}" must be a string.`);
   return v;
 }
 

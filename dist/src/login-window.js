@@ -48,6 +48,11 @@ export async function openLoginWindow(dir, opts) {
         throw e;
     }
 }
+/** "https://app.example.com/vendor?code=…#x" → "https://app.example.com/vendor" */
+export function pageUrl(url) {
+    const u = new URL(url);
+    return u.origin + u.pathname;
+}
 /** "https://Outlook.office.com/mail" → "outlook.office.com"; ports are kept (localhost:3000 matters). */
 export function httpHost(url) {
     try {
@@ -71,22 +76,23 @@ const CHAIN_END = 0x20000000;
 async function visitedHosts(dir, sinceUs) {
     const file = join(dir, 'Default', 'History');
     if (!existsSync(file))
-        return { sites: [], signIn: [] };
+        return { sites: [], signIn: [], landings: [] };
     const SQL = await initSqlJs();
     const db = new SQL.Database(readFileSync(file));
     try {
-        const rows = db.exec('SELECT u.url, v.transition FROM visits v JOIN urls u ON u.id = v.url WHERE v.visit_time >= ? ORDER BY v.visit_time', [sinceUs]);
+        const rows = db.exec('SELECT u.url, u.title, v.transition FROM visits v JOIN urls u ON u.id = v.url WHERE v.visit_time >= ? ORDER BY v.visit_time', [sinceUs]);
         const hosts = new Set();
-        const landed = new Set();
-        for (const [url, transition] of rows[0]?.values ?? []) {
+        const last = new Map();
+        for (const [url, title, transition] of rows[0]?.values ?? []) {
             const host = httpHost(String(url));
             if (!host)
                 continue;
             hosts.add(host);
             if (Number(transition) & CHAIN_END)
-                landed.add(host);
+                last.set(host, { host, url: pageUrl(String(url)), title: String(title ?? '') });
         }
-        return classifyHosts([...hosts], landed);
+        const { sites, signIn } = classifyHosts([...hosts], new Set(last.keys()));
+        return { sites, signIn, landings: sites.map(h => last.get(h)) };
     }
     finally {
         db.close();

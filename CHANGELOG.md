@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.3.0 — 2026-09-30
+
+### Added
+- `/cast:edit <name>` and the `cast_update` tool change a profile's email or description without deleting it or logging in again.
+- After `/cast:add` and `/cast:login`, cast reports the last page you saw on each site (path and title, no query string). If the profile has no description, Claude suggests one from it (e.g. "vendor on platform-dev (/vendor)") and saves it only when you confirm.
+
+### Changed
+- Claude picks profiles by their description and no longer guesses a role from a profile name, email or sites. When no profile or several match, it asks once and saves your answer in the description.
+- `/cast:add` asks who the person is in your tests instead of offering to skip the description.
+- The session start list marks profiles without a description as "role unknown".
+
 ## 0.2.1 — 2026-09-30
 
 ### Changed
