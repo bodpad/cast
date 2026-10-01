@@ -59,4 +59,4 @@ claude plugin validate --strict . # check the manifests
 
 - Everything in the repository is in English.
 - `dist/src` is committed so the plugin needs no build step after install: run `npm run build` and commit `dist/` with source changes.
-- Releases: bump the version in `package.json` and `.claude-plugin/plugin.json`, add a `CHANGELOG.md` entry. Users get updates only when the version changes.
+- Releases: bump the version in `package.json` and `.claude-plugin/plugin.json`, run `npm install` (updates `package-lock.json`), add a `CHANGELOG.md` entry. Users get updates only when the version changes. CI checks that the versions match; after the merge to `main` a workflow tags the version and publishes a GitHub release with its `CHANGELOG.md` section.
