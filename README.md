@@ -134,6 +134,10 @@ Team slots in a project's `.claude/claude-cast.yaml` stay in that repository; de
 
 Plain [Playwright MCP](https://github.com/microsoft/playwright-mcp) runs one browser, which is enough for single-user browsing. Plugins that save auth state (`storageState`) switch roles in one browser and keep only cookies. cast keeps a full Chrome profile per person and several people logged in at once, lets you pass corporate SSO by logging in yourself, and tells Claude who is who.
 
+## Privacy
+
+cast has no server, no account and no telemetry. [Privacy policy](https://github.com/cosmotools/claude-cast/blob/main/PRIVACY.md): what cast stores on your computer, what it reads and what reaches Claude.
+
 ## Support
 
 Questions and ideas: [Discussions](https://github.com/cosmotools/claude-cast/discussions). Bugs: [Issues](https://github.com/cosmotools/claude-cast/issues). Security issues: privately, as [SECURITY.md](SECURITY.md) describes.
