@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
-import { basename, delimiter, join } from 'node:path';
+import { posix, win32 } from 'node:path';
 export class BrowserError extends Error {
 }
 export function systemProbe() {
@@ -27,24 +27,24 @@ export function systemProbe() {
 const KINDS = [
     {
         id: 'chrome', name: 'Google Chrome', linux: ['/opt/google/chrome/chrome'], commands: ['google-chrome-stable', 'google-chrome'],
-        snaps: [], mac: ['Google Chrome', 'Google Chrome'], flatpak: 'com.google.Chrome',
+        snaps: [], mac: ['Google Chrome', 'Google Chrome'], flatpak: 'com.google.Chrome', win: 'Google\\Chrome\\Application\\chrome.exe',
     },
     {
         id: 'edge', name: 'Microsoft Edge', linux: ['/opt/microsoft/msedge/msedge'], commands: ['microsoft-edge-stable', 'microsoft-edge'],
-        snaps: [], mac: ['Microsoft Edge', 'Microsoft Edge'], flatpak: 'com.microsoft.Edge',
+        snaps: [], mac: ['Microsoft Edge', 'Microsoft Edge'], flatpak: 'com.microsoft.Edge', win: 'Microsoft\\Edge\\Application\\msedge.exe',
     },
     {
         id: 'brave', name: 'Brave', linux: ['/opt/brave.com/brave/brave'], commands: ['brave-browser', 'brave'],
-        snaps: ['brave'], mac: ['Brave Browser', 'Brave Browser'], flatpak: 'com.brave.Browser',
+        snaps: ['brave'], mac: ['Brave Browser', 'Brave Browser'], flatpak: 'com.brave.Browser', win: 'BraveSoftware\\Brave-Browser\\Application\\brave.exe',
     },
     {
         id: 'chromium', name: 'Chromium',
         linux: ['/usr/lib/chromium/chromium', '/usr/lib64/chromium-browser/chromium-browser', '/usr/lib/chromium-browser/chromium-browser'],
-        commands: ['chromium', 'chromium-browser'], snaps: ['chromium'], mac: ['Chromium', 'Chromium'], flatpak: 'org.chromium.Chromium',
+        commands: ['chromium', 'chromium-browser'], snaps: ['chromium'], mac: ['Chromium', 'Chromium'], flatpak: 'org.chromium.Chromium', win: 'Chromium\\Application\\chrome.exe',
     },
     {
         id: 'vivaldi', name: 'Vivaldi', linux: ['/opt/vivaldi/vivaldi'], commands: ['vivaldi-stable', 'vivaldi'],
-        snaps: ['vivaldi'], mac: ['Vivaldi', 'Vivaldi'], flatpak: 'com.vivaldi.Vivaldi',
+        snaps: ['vivaldi'], mac: ['Vivaldi', 'Vivaldi'], flatpak: 'com.vivaldi.Vivaldi', win: 'Vivaldi\\Application\\vivaldi.exe',
     },
 ];
 /**
@@ -56,12 +56,23 @@ export function findBrowsers(probe = systemProbe()) {
     const add = (b) => { if (!found.some(f => f.id === b.id))
         found.push(b); };
     for (const kind of KINDS) {
-        if (probe.platform === 'darwin') {
+        if (probe.platform === 'win32') {
+            if (!kind.win)
+                continue;
+            for (const root of windowsRoots(probe)) {
+                const path = win32.join(root, kind.win);
+                if (probe.exists(path)) {
+                    add({ id: kind.id, name: kind.name, executable: path });
+                    break;
+                }
+            }
+        }
+        else if (probe.platform === 'darwin') {
             if (!kind.mac)
                 continue;
             const [app, exe] = kind.mac;
-            for (const root of [join(probe.home, 'Applications'), '/Applications']) {
-                const path = join(root, `${app}.app`, 'Contents', 'MacOS', exe);
+            for (const root of [posix.join(probe.home, 'Applications'), '/Applications']) {
+                const path = posix.join(root, `${app}.app`, 'Contents', 'MacOS', exe);
                 if (probe.exists(path)) {
                     add({ id: kind.id, name: kind.name, executable: path });
                     break;
@@ -100,12 +111,12 @@ function linuxBrowser(probe, path, kind) {
  */
 function snapOf(probe, path) {
     if (path.startsWith('/snap/bin/'))
-        return basename(path);
+        return posix.basename(path);
     const real = probe.realpath(path);
     if (real.startsWith('/snap/'))
         return real.split('/')[2];
-    if (basename(real) === 'snap')
-        return basename(path);
+    if (posix.basename(real) === 'snap')
+        return posix.basename(path);
     const head = probe.head(path);
     if (head.startsWith('#!'))
         return /\/snap\/bin\/([a-z0-9-]+)/.exec(head)?.[1];
@@ -114,8 +125,12 @@ function snapOf(probe, path) {
 function snapBrowser(kind, snap, executable) {
     return { id: `snap:${snap}`, name: `${kind.name} (snap)`, executable, snap };
 }
+/** System-wide installs first, then per-user ones (Chrome installs to AppData\\Local without admin rights). */
+function windowsRoots(probe) {
+    return [probe.env.ProgramFiles, probe.env['ProgramFiles(x86)'], probe.env.LOCALAPPDATA].filter((r) => !!r);
+}
 function inPath(probe, command) {
-    return (probe.env.PATH ?? '').split(delimiter).filter(Boolean).map(dir => join(dir, command));
+    return (probe.env.PATH ?? '').split(posix.delimiter).filter(Boolean).map(dir => posix.join(dir, command));
 }
 /** CAST_CHROME: any Chromium browser the user points at; a snap is recognized so its profiles go to ~/snap. */
 function customBrowser(probe, path) {
@@ -150,9 +165,9 @@ export function browserNotFound(probe = systemProbe(), found = []) {
     if (found.length) {
         return new BrowserError(`This profile was made with Google Chrome, which is not found; only ${found.map(b => b.name).join(', ')} is installed, which keeps its profiles elsewhere. Install Google Chrome, or start over with /cast:remove and /cast:add.`);
     }
-    const install = probe.platform === 'darwin'
-        ? 'Install Google Chrome from https://www.google.com/chrome/'
-        : 'Install Google Chrome from https://www.google.com/chrome/ (the .deb or .rpm package)';
+    const install = probe.platform === 'linux'
+        ? 'Install Google Chrome from https://www.google.com/chrome/ (the .deb or .rpm package)'
+        : 'Install Google Chrome from https://www.google.com/chrome/';
     const flatpaks = KINDS.filter(k => flatpakInstalled(probe, k.flatpak)).map(k => k.name);
     if (flatpaks.length) {
         return new BrowserError(`Only a Flatpak ${flatpaks.join(', ')} is installed, which cast cannot run: its sandbox hides the process and the profile folder. ${install}, or set CAST_CHROME to another Chromium browser.`);
@@ -162,11 +177,13 @@ export function browserNotFound(probe = systemProbe(), found = []) {
 }
 function flatpakInstalled(probe, id) {
     return probe.platform === 'linux'
-        && (probe.exists(`/var/lib/flatpak/app/${id}`) || probe.exists(join(probe.home, '.local/share/flatpak/app', id)));
+        && (probe.exists(`/var/lib/flatpak/app/${id}`) || probe.exists(posix.join(probe.home, '.local/share/flatpak/app', id)));
 }
 function firefoxInstalled(probe) {
+    if (probe.platform === 'win32')
+        return windowsRoots(probe).some(r => probe.exists(win32.join(r, 'Mozilla Firefox', 'firefox.exe')));
     if (probe.platform === 'darwin')
-        return probe.exists('/Applications/Firefox.app') || probe.exists(join(probe.home, 'Applications/Firefox.app'));
+        return probe.exists('/Applications/Firefox.app') || probe.exists(posix.join(probe.home, 'Applications/Firefox.app'));
     return ['/usr/bin/firefox', '/snap/bin/firefox', '/usr/lib/firefox/firefox'].some(p => probe.exists(p)) || flatpakInstalled(probe, 'org.mozilla.firefox');
 }
 /** "brave" → "Brave", "snap:chromium" → "Chromium (snap)". */

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.9.0 — 2026-10-01
+
+### Added
+- Windows support (tested in CI; please report what you see on a real desktop). cast finds Google Chrome, Microsoft Edge, Brave, Chromium or Vivaldi under Program Files or `AppData\Local`; Edge comes with Windows. Profile lists are kept in `%APPDATA%\cast`, browser data in `%LOCALAPPDATA%\cast`. A cast window is closed the way its close button does, so cookies and history are saved.
+
 ## 0.8.0 — 2026-10-01
 
 ### Added
