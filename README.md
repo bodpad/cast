@@ -1,6 +1,6 @@
-# cast
+# cast: Claude tests your app as every user at once
 
-**Several logged-in browser users for [Claude Code](https://claude.com/claude-code).**
+**A real, logged-in Chrome for each person in your test, SSO included. Sam sends a message, Elon receives it, [Claude Code](https://claude.com/claude-code) checks both screens.**
 
 ![cast demo: Claude drives two logged-in browsers and finds a bug](docs/demo.gif)
 
