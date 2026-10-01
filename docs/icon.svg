@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 1024 1024">
-  <!-- cast icon: three masks, one per person. Source of .claude-plugin/icon.png -->
+  <!-- cast icon: three masks, one per person, under one set of browser window buttons. Source of .claude-plugin/icon.png -->
   <defs>
     <g id="face">
       <path d="M-118 -55 Q-72 -100 -26 -55 Q-72 -38 -118 -55Z"/>
@@ -9,9 +9,14 @@
     <path id="mask" d="M-150 -185 C-60 -222 60 -222 150 -185 C178 -60 152 88 74 168 C38 204 -38 204 -74 168 C-152 88 -178 -60 -150 -185Z" stroke="#ffffff" stroke-width="20" paint-order="stroke"/>
   </defs>
   <rect width="1024" height="1024" fill="#ffffff"/>
-  <g fill="#1f2328" transform="translate(512 512) scale(1.15) translate(-512 -512)">
+  <g fill="#1f2328" transform="translate(512 552) scale(1.15) translate(-512 -512)">
     <g transform="translate(314 520) scale(0.95)"><use xlink:href="#mask" fill="#4fae6e"/><use xlink:href="#face"/></g>
     <g transform="translate(710 520) scale(0.95)"><use xlink:href="#mask" fill="#d9534f"/><use xlink:href="#face"/></g>
     <g transform="translate(512 520) scale(1.05)"><use xlink:href="#mask" fill="#3f9bd8"/><use xlink:href="#face"/></g>
+  </g>
+  <g fill="none" stroke="#1f2328" stroke-width="18" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M338 190h56"/>
+    <rect x="484" y="162" width="56" height="56" rx="7"/>
+    <path d="M630 162l56 56M686 162l-56 56"/>
   </g>
 </svg>
