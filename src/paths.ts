@@ -11,13 +11,16 @@ export interface CastPaths {
   projectId: string;
   configDir: string;
   dataDir: string;
+  /** Profiles of a snap browser live in <snapDir>/<snap>/common/cast: a snap cannot read hidden folders in home. */
+  snapDir: string;
 }
 
 export function resolvePaths(env: NodeJS.ProcessEnv = process.env): CastPaths {
   const projectDir = realpathOrSelf(resolve(expanded(env.CAST_PROJECT_DIR) || expanded(env.CLAUDE_PROJECT_DIR) || process.cwd()));
   const configDir = env.CAST_CONFIG_DIR || join(env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'cast');
   const dataDir = env.CAST_DATA_DIR || join(env.XDG_DATA_HOME || join(homedir(), '.local', 'share'), 'cast');
-  return { projectDir, projectId: projectIdFor(projectDir), configDir, dataDir };
+  const snapDir = env.CAST_DATA_DIR ? join(env.CAST_DATA_DIR, 'snap') : join(homedir(), 'snap');
+  return { projectDir, projectId: projectIdFor(projectDir), configDir, dataDir, snapDir };
 }
 
 /** Readable and stable: "<folder>-<8 hex of the real path>". */
@@ -35,12 +38,16 @@ export function listFile(paths: CastPaths, scope: Scope): string {
   }
 }
 
-/** Project slots are filled per developer, so their Chrome data lives next to local profiles. */
-export function profileDir(paths: CastPaths, scope: Scope, name: string): string {
+/**
+ * Project slots are filled per developer, so their Chrome data lives next to local profiles. `browser`
+ * is the id the profile records ("snap:chromium" puts it where that snap can write).
+ */
+export function profileDir(paths: CastPaths, scope: Scope, name: string, browser?: string): string {
   const key = name.toLowerCase();
+  const root = browser?.startsWith('snap:') ? join(paths.snapDir, browser.slice(5), 'common', 'cast') : paths.dataDir;
   return scope === 'user'
-    ? join(paths.dataDir, 'user', key)
-    : join(paths.dataDir, 'projects', paths.projectId, key);
+    ? join(root, 'user', key)
+    : join(root, 'projects', paths.projectId, key);
 }
 
 export function outputDir(paths: CastPaths, name: string): string {

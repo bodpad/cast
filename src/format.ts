@@ -1,3 +1,4 @@
+import { browserName } from './browsers.js';
 import type { WindowLook } from './chrome.js';
 import type { Profile } from './registry.js';
 
@@ -13,6 +14,7 @@ export function briefList(profiles: Profile[]): string {
     if (p.email) line += ` ${p.email}`;
     line += p.description ? ` — ${p.description}.` : ' — role unknown (no description).';
     if (p.sites.length) line += ` Sites: ${p.sites.join(', ')}`;
+    if (p.browser && p.browser !== 'chrome') line += ` Browser: ${browserName(p.browser)}.`;
     return line;
   });
   return ['cast: browser users available (open with cast_open / browser_* tools with profile=<name>):', ...lines].join('\n');

@@ -28,6 +28,7 @@ export async function startLoginWindow(dir, opts) {
     const chrome = await launchChrome(dir, {
         restore: true,
         look: opts.look,
+        browser: opts.browser,
         detached: true,
         // Tests play the human over a DevTools port; real login windows never get one.
         debugPort: test && !!opts.onReady,

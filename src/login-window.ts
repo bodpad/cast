@@ -2,6 +2,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import initSqlJs from 'sql.js';
+import type { Browser } from './browsers.js';
 import { type Chrome, type WindowLook, launchChrome } from './chrome.js';
 import { ensurePrivateDir } from './paths.js';
 import { classifyHosts } from './sites.js';
@@ -19,6 +20,7 @@ export interface LoginWindowOptions {
   /** Sites the profile already knows; opened as extra tabs for /cast:login. */
   sites?: string[];
   look?: WindowLook;
+  browser?: Browser;
   timeoutMs?: number;
   /** Tests only: called once Chrome runs, to browse and close the window instead of a human. */
   onReady?: (window: LoginWindow) => void | Promise<void>;
@@ -71,6 +73,7 @@ export async function startLoginWindow(dir: string, opts: LoginWindowOptions): P
   const chrome = await launchChrome(dir, {
     restore: true,
     look: opts.look,
+    browser: opts.browser,
     detached: true,
     // Tests play the human over a DevTools port; real login windows never get one.
     debugPort: test && !!opts.onReady,

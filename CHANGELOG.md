@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.8.0 — 2026-10-01
+
+### Added
+- Other Chromium browsers: when Google Chrome is not installed, cast uses Microsoft Edge, Brave, Chromium or Vivaldi, found in their usual places and in `PATH`. Snap browsers work too (Ubuntu's Chromium); their profiles live in `~/snap/<browser>/common/cast/`, the only place a snap can write.
+- Each profile keeps the browser it was made with; the session start names it when it is not Google Chrome.
+
+### Changed
+- When no browser fits, the error says what was found and what to do: a Flatpak browser cannot be used, Firefox is not supported, install Google Chrome or set `CAST_CHROME`.
+
 ## 0.7.0 — 2026-10-01
 
 ### Added
