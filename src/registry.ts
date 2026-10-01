@@ -176,6 +176,13 @@ export function editProfile(paths: CastPaths, name: string, fields: ProfileInput
   return findProfile(paths, name)!;
 }
 
+/** The description of a team slot in .claude/cast.yaml, if it has one. */
+export function slotDescription(paths: CastPaths, name: string): string | undefined {
+  const project = readProject(paths);
+  const key = findKey(project.profiles, name);
+  return key ? project.profiles[key].description || undefined : undefined;
+}
+
 /** Forgets this developer's login. A project slot itself stays in .claude/cast.yaml for the team. */
 export function removeProfile(paths: CastPaths, name: string): Profile {
   const p = findProfile(paths, name);

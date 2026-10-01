@@ -10,7 +10,7 @@ import { normalizeSite, startLoginWindow } from './login-window.js';
 import { finishClosedLogins, finishLogin, lastLogin, loginPending } from './logins.js';
 import { outputDir, resolvePaths } from './paths.js';
 import { VERSION } from './version.js';
-import { RegistryError, addProfile, editProfile, ensureColor, findProfile, loadProfiles, removeProfile, requireReady, updateProfile, } from './registry.js';
+import { RegistryError, addProfile, editProfile, ensureColor, findProfile, loadProfiles, removeProfile, requireReady, slotDescription, updateProfile, } from './registry.js';
 const HUMAN_ONLY = 'Call ONLY when the user explicitly asked for it (/cast:add, /cast:login): a human must log in in the window. Never call it on your own because a session expired.';
 const CAST_TOOLS = [
     {
@@ -40,7 +40,7 @@ const CAST_TOOLS = [
             properties: {
                 name: { type: 'string', description: 'Profile name: letters, digits, "-" or "_"' },
                 email: { type: 'string' },
-                description: { type: 'string', description: 'Who this person is in tests, e.g. "sender" or "vendor, Acme org". Only what the user gave.' },
+                description: { type: 'string', description: 'Required: who this person is in tests, e.g. "sender" or "vendor, Acme org". Only what the user gave. May be left out only for a project slot that already has a description.' },
                 scope: { type: 'string', enum: ['local', 'project', 'user'], description: 'local (default): this project only; project: shared team slot in .claude/cast.yaml; user: all projects' },
             },
             required: ['name'],
@@ -67,7 +67,7 @@ const CAST_TOOLS = [
     },
     {
         name: 'cast_update',
-        description: 'Change the email or description of a profile without logging in again. The description says who this person is in tests (e.g. "vendor, Acme org"); Claude picks profiles by it. Save only what the user stated or confirmed, never a guess. An empty string clears a field.',
+        description: 'Change the email or description of a profile without logging in again. The description says who this person is in tests (e.g. "vendor, Acme org"); Claude picks profiles by it. Save only what the user stated or confirmed, never a guess. An empty email clears it; a description cannot be cleared, only replaced (an empty one on a project profile goes back to the team slot\'s).',
         inputSchema: {
             type: 'object',
             properties: { name: PROFILE_PARAM, email: { type: 'string' }, description: { type: 'string' } },
@@ -134,10 +134,14 @@ async function castTool(paths, gateway, tool, args) {
             if (!['local', 'project', 'user'].includes(scope))
                 throw new RegistryError(`Unknown scope "${scope}".`);
             const before = findProfile(paths, name);
+            const description = optStr(args, 'description');
+            if (!description && !before?.ready && !before?.description) {
+                throw new RegistryError(`A description is required: Claude picks profiles by it. Ask the user who "${name}" is in the tests (e.g. "sender", "vendor, Acme org"), then call cast_add again with it.`);
+            }
             // Fails before anything is saved when no browser fits.
             const browser = pickBrowser();
             const p = addProfile(paths, name, scope, {
-                email: optStr(args, 'email'), description: optStr(args, 'description'), browser: browser.id === 'custom' ? undefined : browser.id,
+                email: optStr(args, 'email'), description, browser: browser.id === 'custom' ? undefined : browser.id,
             });
             try {
                 await loginWindow(paths, gateway, p);
@@ -175,6 +179,12 @@ async function castTool(paths, gateway, tool, args) {
             const fields = { email: rawStr(args, 'email'), description: rawStr(args, 'description') };
             if (fields.email === undefined && fields.description === undefined)
                 throw new RegistryError('Pass "email" or "description" to change.');
+            if (fields.description !== undefined && !fields.description.trim()) {
+                const current = requireReady(paths, str(args, 'name'));
+                if (current.scope !== 'project' || !slotDescription(paths, current.name)) {
+                    throw new RegistryError(`A description cannot be cleared: Claude picks profiles by it. Pass the new description of "${current.name}".`);
+                }
+            }
             const p = editProfile(paths, str(args, 'name'), fields);
             const slot = p.scope === 'project' && fields.description !== undefined
                 ? ' The description is kept for you only; the team slot in .claude/cast.yaml is unchanged.' : '';
