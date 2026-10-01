@@ -10,7 +10,7 @@ const personalEntry = z.object({
     sites: z.array(z.string()).default([]),
     createdAt: z.string().optional(),
     lastLoginAt: z.string().optional(),
-    /** When the last login window opened; the login is finished once lastLoginAt is later. */
+    /** When the last user window opened; the login is finished once lastLoginAt is later. */
     loginStartedAt: z.string().optional(),
     /** Window color, e.g. "#1e88e5", so people tell the windows apart. */
     color: z.string().optional(),
@@ -73,7 +73,7 @@ export function addProfile(paths, name, scope, input) {
     validateName(name);
     const existing = findProfile(paths, name);
     if (existing?.ready) {
-        throw new RegistryError(`Profile "${existing.name}" already exists (${existing.scope}). Use /cast:login ${existing.name} to log in again.`);
+        throw new RegistryError(`Profile "${existing.name}" already exists (${existing.scope}). Use /cast:open ${existing.name} to log in again.`);
     }
     if (existing && !existing.ready)
         scope = 'project';

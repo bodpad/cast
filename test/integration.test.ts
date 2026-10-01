@@ -84,7 +84,7 @@ function assertNoSecrets(output: string) {
   for (const s of site.secrets) assert.ok(!output.includes(s), 'cookie value leaked into output');
 }
 
-describe('login window', () => {
+describe('user window', () => {
   test('suggests the sites the user landed on, not redirect hops, and finishes when the window closes', async () => {
     const result = await humanLogin('Sam', 'sam');
     assert.equal(result.timedOut, false);
@@ -94,7 +94,7 @@ describe('login window', () => {
     if (process.platform !== 'win32') assert.equal(statSync(findProfile(sb.paths, 'Sam')!.dir).mode & 0o777, 0o700);
   });
 
-  test('the login window is not flagged as automated', async () => {
+  test('the user window is not flagged as automated', async () => {
     addProfile(sb.paths, 'Plain', 'local', {});
     const dir = findProfile(sb.paths, 'Plain')!.dir;
     const report = () => site.hits.find(h => h.startsWith('/report?'));
@@ -251,7 +251,7 @@ describe('cast MCP server', () => {
   test('lists cast and proxied tools', async () => {
     const { tools } = await client.listTools();
     const names = tools.map(t => t.name);
-    for (const n of ['cast_list', 'cast_open', 'cast_close', 'cast_add', 'cast_login', 'cast_login_result', 'cast_set_sites', 'cast_update', 'cast_remove', 'browser_click']) {
+    for (const n of ['cast_list', 'cast_open', 'cast_close', 'cast_add', 'cast_open_for_user', 'cast_user_window_result', 'cast_set_sites', 'cast_update', 'cast_remove', 'browser_click']) {
       assert.ok(names.includes(n), n);
     }
     // The Anthropic directory requires a title and read-only/destructive hints on every tool.
@@ -290,24 +290,24 @@ describe('cast MCP server', () => {
     assert.equal(findProfile(sb.paths, 'Nodesc'), undefined);
   });
 
-  test('cast_add returns at once; the profile waits until the login window is closed', async () => {
+  test('cast_add returns at once; the profile waits until the user window is closed', async () => {
     const started = Date.now();
     const opened = await client.callTool({ name: 'cast_add', arguments: { name: 'Ann', description: 'reviewer' } });
-    assert.match(text(opened), /login window for "Ann" is open/);
+    assert.match(text(opened), /user window for "Ann" is open/);
     assert.ok(Date.now() - started < 20_000);
     const dir = findProfile(sb.paths, 'Ann')!.dir;
     assert.ok(isRunning(dir));
 
-    assert.match(text(await client.callTool({ name: 'cast_login_result', arguments: { name: 'ann' } })), /still open/);
+    assert.match(text(await client.callTool({ name: 'cast_user_window_result', arguments: { name: 'ann' } })), /still open/);
     const busy = await client.callTool({ name: 'browser_snapshot', arguments: { profile: 'Ann' } });
     assert.equal(busy.isError, true);
-    assert.match(text(busy), /login window for "Ann" is still open/);
+    assert.match(text(busy), /user window for "Ann" is still open/);
 
     // The human closes the window.
     quitChrome(dir);
     await until(() => !isRunning(dir));
-    const result = await client.callTool({ name: 'cast_login_result', arguments: { name: 'Ann' } });
-    assert.match(text(result), /login window for "Ann" is closed/);
+    const result = await client.callTool({ name: 'cast_user_window_result', arguments: { name: 'Ann' } });
+    assert.match(text(result), /user window for "Ann" is closed/);
     assert.ok(findProfile(sb.paths, 'Ann')!.lastLoginAt);
   });
 

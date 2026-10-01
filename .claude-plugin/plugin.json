@@ -1,7 +1,7 @@
 {
   "name": "cast",
   "displayName": "Cast",
-  "version": "0.10.1",
+  "version": "0.11.0",
   "description": "Several logged-in browser users for Claude: one persistent Chrome profile per person (Sam writes, Elon receives).",
   "author": { "name": "cosmotools" },
   "homepage": "https://github.com/cosmotools/claude-cast",

@@ -12,7 +12,7 @@ Everything stays until you delete it: `/cast:remove <name>` deletes a profile, a
 
 ## What cast reads
 
-- After a login window closes, cast reads that profile's own Chrome history for the visits made while it was open: hosts, the path and title of the last page on each site, no query strings. It never reads your personal Chrome profile.
+- After a window from `/cast:add` or `/cast:open` closes, cast reads that profile's own Chrome history for the visits made while it was open: hosts, the path and title of the last page on each site, no query strings. It never reads your personal Chrome profile.
 - Nothing else: cast does not read cookies, passwords, Claude's memory, chat history or your files.
 
 ## What reaches Claude

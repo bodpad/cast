@@ -4,7 +4,7 @@ import type { CastPaths } from './paths.js';
 import { type Profile, findProfile, loadProfiles, updateProfile } from './registry.js';
 
 /**
- * A login runs from /cast:add or /cast:login until cast has read what the human visited, which it can
+ * A login runs from /cast:add or /cast:open until cast has read what the human visited, which it can
  * do only after the window is closed. The window may outlive the Claude session, so any later cast
  * call (or the next session start) finishes it.
  */
@@ -13,7 +13,7 @@ export function loginPending(p: Profile): boolean {
 }
 
 /**
- * Saves the sites visited in a finished login window (without asking: /cast:edit changes them).
+ * Saves the sites visited in a finished user window (without asking: /cast:edit changes them).
  * Returns undefined while the window is still open.
  */
 export async function finishLogin(paths: CastPaths, name: string): Promise<Profile | undefined> {
@@ -32,7 +32,7 @@ export async function finishClosedLogins(paths: CastPaths): Promise<void> {
   }
 }
 
-/** What the human visited in the last finished login window. */
+/** What the human visited in the last finished user window. */
 export function lastLogin(p: Profile): Promise<LoginResult> {
   return readLogin(p.dir, new Date(p.loginStartedAt!), new Date(p.lastLoginAt!));
 }

@@ -30,7 +30,7 @@ export interface LaunchOptions {
   restore?: boolean;
   /** How people tell this profile's window from the others. */
   look?: WindowLook;
-  /** Keep running after cast exits (the login window outlives the Claude session). */
+  /** Keep running after cast exits (the user window outlives the Claude session). */
   detached?: boolean;
   /** The profile's browser; by default the preferred one installed. */
   browser?: Browser;
@@ -126,7 +126,7 @@ export async function launchChrome(dir: string, opts: LaunchOptions = {}): Promi
     await chrome.close();
     throw spawnError ? notInstalled(browser) : startFailure(log, gone, browser);
   }
-  // Until the lock exists, isRunning() would report a login window that is still starting as closed.
+  // Until the lock exists, isRunning() would report a user window that is still starting as closed.
   for (let i = 0; i < 100 && !gone && !isRunning(dir); i++) await new Promise(r => setTimeout(r, 100));
   if (gone) throw startFailure(log, true, browser);
   return chrome;
@@ -185,7 +185,7 @@ function startFailure(log: string, exited: boolean, browser: Browser): ChromeErr
     return new ChromeError(`${browser.name} cannot open a window: the display is not reachable. Start Claude Code from a terminal in your desktop session, not over plain SSH.`);
   }
   if (/profile appears to be in use|ProcessSingleton/i.test(text)) {
-    return new ChromeError('This profile is already open in another Chrome window (a login window or another Claude session). Close that window and try again.');
+    return new ChromeError('This profile is already open in another Chrome window (one opened with /cast:add or /cast:open, or another Claude session). Close that window and try again.');
   }
   const last = text.split('\n').map(l => l.replace(/^\[[^\]]*\]\s*/, '').trim()).filter(l => l && !/^Read channel/.test(l)).slice(-2).join(' ');
   return new ChromeError(`${browser.name} exited right after starting${last ? `: ${last}` : ''}. Its output is in ${log}.`);
@@ -223,7 +223,7 @@ const SET_WINDOW_USER_TITLE = 31;
 
 /**
  * Restored windows ignore --window-name and keep the title saved in the session ("Name window…"),
- * so a profile made before window names existed, or a login window restored as Claude's window,
+ * so a profile made before window names existed, or a user window restored as Claude's window,
  * would show the wrong title. Appends a SetWindowUserTitle command for each window to the session
  * files; the last command wins. Leaves files in a format it does not know alone.
  */
@@ -300,7 +300,7 @@ export function isRunning(dir: string): boolean {
 
 /** A second Chrome on a busy profile would hand its tabs to the running one and exit, so refuse early. */
 export function assertNotRunning(dir: string): void {
-  if (isRunning(dir)) throw new ChromeError('This profile is already open in another Chrome window (a login window or another Claude session). Close that window and try again.');
+  if (isRunning(dir)) throw new ChromeError('This profile is already open in another Chrome window (one opened with /cast:add or /cast:open, or another Claude session). Close that window and try again.');
 }
 
 function notInstalled(browser: Browser): ChromeError {

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.11.0 — 2026-10-01
+
+### Changed
+- `/cast:login` is now `/cast:open`: it opens a person's browser for you, without Claude's control, to log in again, add sites or work by hand. The window title says `your window` instead of `log in`.
+
 ## 0.10.1 — 2026-10-01
 
 ### Added
