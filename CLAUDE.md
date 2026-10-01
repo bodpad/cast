@@ -11,7 +11,7 @@ Core ideas:
 - **A human logs in, Claude never does.** `/cast:add` and `/cast:open` open a plain Chrome for the human; when a session expires Claude asks for `/cast:open <name>`.
 - **Two modes of one profile:** the user window (plain Chrome, no control port, so SSO bot checks pass) and Claude's window (the same Chrome with a DevTools port, Playwright MCP attached).
 - **Claude knows who is who:** a `SessionStart` hook lists profiles (name, email, role, sites) in every session.
-- Scopes like Claude's own: `local` (this project), `project` (team slot in `.claude/cast.yaml`, no credentials), `user` (all projects).
+- Scopes like Claude's own: `local` (this project), `project` (team slot in `.claude/claude-cast.yaml`, no credentials), `user` (all projects).
 
 Status: Linux, macOS and Windows (Windows tested in CI only). Installed as `/plugin marketplace add cosmotools/claude-cast`, `/plugin install cast@cosmotools`. Planned work is under "Not done yet" in `CONTRIBUTING.md`.
 

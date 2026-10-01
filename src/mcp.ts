@@ -49,7 +49,7 @@ const CAST_TOOLS: Tool[] = [
         name: { type: 'string', description: 'Profile name: letters, digits, "-" or "_"' },
         email: { type: 'string' },
         description: { type: 'string', description: 'Required: who this person is in tests, e.g. "sender" or "vendor, Acme org". Only what the user gave. May be left out only for a project slot that already has a description.' },
-        scope: { type: 'string', enum: ['local', 'project', 'user'], description: 'local (default): this project only; project: shared team slot in .claude/cast.yaml; user: all projects' },
+        scope: { type: 'string', enum: ['local', 'project', 'user'], description: 'local (default): this project only; project: shared team slot in .claude/claude-cast.yaml; user: all projects' },
       },
       required: ['name'],
     },
@@ -197,7 +197,7 @@ async function castTool(paths: CastPaths, gateway: Gateway, tool: string, args: 
       }
       const p = editProfile(paths, str(args, 'name'), fields);
       const slot = p.scope === 'project' && fields.description !== undefined
-        ? ' The description is kept for you only; the team slot in .claude/cast.yaml is unchanged.' : '';
+        ? ' The description is kept for you only; the team slot in .claude/claude-cast.yaml is unchanged.' : '';
       return ok(`Profile "${p.name}": email ${p.email ?? '(none)'}, description ${p.description ?? '(none)'}.${slot}`);
     }
     case 'cast_remove': {
@@ -206,7 +206,7 @@ async function castTool(paths: CastPaths, gateway: Gateway, tool: string, args: 
       const p = removeProfile(paths, name);
       rmSync(p.dir, { recursive: true, force: true });
       rmSync(outputDir(paths, p.name), { recursive: true, force: true });
-      const slot = p.scope === 'project' ? ' The team slot stays in .claude/cast.yaml.' : '';
+      const slot = p.scope === 'project' ? ' The team slot stays in .claude/claude-cast.yaml.' : '';
       return ok(`Removed profile "${p.name}" (${p.scope}) and its browser data.${slot}`);
     }
     default:
