@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.12.1 — 2026-10-01
+
+### Fixed
+- Opening a profile no longer makes the cast server use about 600 MB of memory: looking for a snap launcher read the whole browser executable instead of its first bytes.
+
 ## 0.12.0 — 2026-10-01
 
 ### Changed

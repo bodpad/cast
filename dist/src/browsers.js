@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, realpathSync } from 'node:fs';
+import { closeSync, existsSync, openSync, readSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { posix, win32 } from 'node:path';
 export class BrowserError extends Error {
@@ -16,12 +16,23 @@ export function systemProbe() {
             return p;
         } },
         head: p => { try {
-            return readFileSync(p, 'latin1').slice(0, 4096);
+            return readHead(p, 4096);
         }
         catch {
             return '';
         } },
     };
+}
+/** The first bytes of a file: reading a whole browser executable would cost hundreds of MB. */
+function readHead(path, size) {
+    const fd = openSync(path, 'r');
+    try {
+        const buf = Buffer.alloc(size);
+        return buf.toString('latin1', 0, readSync(fd, buf, 0, size, 0));
+    }
+    finally {
+        closeSync(fd);
+    }
 }
 /** In order of preference. Google Chrome is what most sites and SSO providers test with. */
 const KINDS = [
