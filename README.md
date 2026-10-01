@@ -42,7 +42,7 @@ Profiles and logins are kept. What changed in each version: [CHANGELOG.md](CHANG
 
 1. `/cast:add Sam sam@example.com "sends messages"` — the description says who this person is in your tests and is required: Claude picks profiles by it. Leave it out and Claude asks for it before the window opens.
 2. A Chrome window opens. Log in everywhere Sam needs (your app, SSO, email), choose **"Stay signed in"** on MFA, then **close the window** and tell Claude. You may leave Claude Code meanwhile: cast saves what you visited once the window is closed.
-3. cast saves the sites where you landed (e.g. `localhost:3000`; sign-in pages are left out). Change them any time, e.g. `/cast:edit Sam +staging.example.com -localhost:3000`.
+3. cast saves the sites where you landed (e.g. `app.example.com`; sign-in pages are left out). Change them any time, e.g. `/cast:edit Sam +admin.example.com -old.example.com`.
 
 Now every Claude Code session in this project knows Sam. Just ask:
 
