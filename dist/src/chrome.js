@@ -84,12 +84,11 @@ export async function launchChrome(dir, opts = {}) {
         throw notInstalled(browser);
     if (opts.debugPort) {
         for (let i = 0; i < 200 && !gone; i++) {
-            if (existsSync(portFile)) {
-                const [port] = readFileSync(portFile, 'utf8').split('\n');
-                if (port) {
-                    chrome.endpoint = `http://127.0.0.1:${port}`;
-                    return chrome;
-                }
+            // "<port>\n<browser path>": wait for both lines, so a half-written file is not read.
+            const [port, path] = readPortFile(portFile).split('\n');
+            if (port && path) {
+                chrome.endpoint = `http://127.0.0.1:${port}`;
+                return chrome;
             }
             await new Promise(r => setTimeout(r, 100));
         }
@@ -104,6 +103,15 @@ export async function launchChrome(dir, opts = {}) {
     return chrome;
 }
 const LOG_FILE = 'cast-chrome.log';
+/** "" until Chrome has written the file; on Windows Chrome keeps it locked while writing (EBUSY). */
+function readPortFile(file) {
+    try {
+        return readFileSync(file, 'utf8');
+    }
+    catch {
+        return '';
+    }
+}
 /**
  * Asks Chrome to quit the way closing its window does, so cookies and History are flushed (Chrome writes
  * them every ~10-30 s). SIGINT does that on Linux and macOS; SIGTERM does not. Windows has no signals:
