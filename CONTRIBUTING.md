@@ -44,7 +44,7 @@ Chrome and Playwright MCP quirks found the hard way (Linux, Chrome 151 and macOS
 - A lock for one profile used by two Claude sessions (today Chrome refuses a busy folder and cast shows a hint).
 - Detecting logged-in or expired state per site, `/cast:check`, a clean profile for sign-up tests.
 - Whether to hide `browser_run_code_unsafe` (it can read cookies).
-- Optional headless, TOTP, recording, publishing to npm and the Anthropic directory.
+- Optional headless, TOTP, recording, publishing to npm.
 
 ## Develop
 
@@ -66,4 +66,4 @@ claude plugin validate --strict . # check the manifests
 
 - Everything in the repository is in English.
 - `dist/src` is committed so the plugin needs no build step after install: run `npm run build` and commit `dist/` with source changes.
-- Releases: bump the version in `package.json` and `.claude-plugin/plugin.json`, run `npm install` (updates `package-lock.json`), add a `CHANGELOG.md` entry. Users get updates only when the version changes. CI checks that the versions match; after the merge to `main` a workflow tags the version and publishes a GitHub release with its `CHANGELOG.md` section.
+- Releases: bump the version in `package.json` and `.claude-plugin/plugin.json`, run `npm install` (updates `package-lock.json`), add a `CHANGELOG.md` entry. Users get updates only when the version changes. CI checks that the versions match; after the merge to `main` a workflow tags the version and publishes a GitHub release with its `CHANGELOG.md` section. Anthropic's directory follows `main` too: it scans each new commit and publishes a version that passes, so keep `README.md` describing everything cast runs, reads and sends.

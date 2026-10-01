@@ -22,6 +22,10 @@ Start Claude Code (`claude`) and type these at its prompt. They are Claude Code 
 
 From a terminal instead: `claude plugin marketplace add cosmotools/claude-cast`, then `claude plugin install cast@cosmotools`, then start `claude`.
 
+Or add cast from Anthropic's directory on claude.ai (**Customize → Plugins → Discover**); Claude Code then loads it as `cast@synced` when you sign in with that claude.ai account. Install it one way, not both: a marketplace install takes precedence over the synced copy.
+
+cast works in Claude Code, and in Cowork when the session runs on your computer. It does nothing in claude.ai chat: it starts browsers on your computer, which a chat cannot reach.
+
 ## Update
 
 In a Claude Code session, fetch the latest marketplace listing, update the plugin and reload it:
@@ -78,7 +82,7 @@ Names: latin letters, digits, `-`, `_`.
 - **On macOS, a small watcher** per cast window (`osascript`, CoreGraphics window list) that quits that Chrome once its last window is closed.
 - **On Windows, `taskkill` without `/F`** to close a cast window the way its close button does, so cookies are saved.
 
-cast sends nothing anywhere by itself and has no telemetry. Details: [PRIVACY.md](PRIVACY.md), [SECURITY.md](SECURITY.md).
+cast sends nothing anywhere by itself and has no telemetry. What Claude reads in a cast window (pages, snapshots, screenshots) goes to the model as part of your Claude session, like any other tool result. Details: [PRIVACY.md](PRIVACY.md), [SECURITY.md](SECURITY.md).
 
 ## Scopes and teams
 
@@ -105,6 +109,8 @@ In a Claude Code session:
 ```
 
 From a terminal instead: `claude plugin uninstall cast@cosmotools`, then `claude plugin marketplace remove cosmotools`.
+
+Added from claude.ai: remove it in **Customize → Plugins** there.
 
 Uninstalling keeps profiles and logins. To delete them too, close all cast windows and remove both folders:
 

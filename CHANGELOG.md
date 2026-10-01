@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.10.1 — 2026-10-01
+
+### Added
+- Ready for Anthropic's plugin directory: a display name, install and uninstall from claude.ai in the README, and where cast works (Claude Code, Cowork on your computer; not claude.ai chat).
+
 ## 0.10.0 — 2026-10-01
 
 ### Changed
