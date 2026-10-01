@@ -89,7 +89,8 @@ export function text(result: object): string {
 
 /**
  * Quits the Chrome running on a profile folder the way closing its window does. On Windows a headless
- * Chrome has no window to close, so it is then stopped by force (its History may be lost).
+ * Chrome has no window to close (taskkill without /F may still report success), so it is stopped by
+ * force (its History may be lost).
  */
 export function quitChrome(dir: string): void {
   if (process.platform !== 'win32') {
@@ -102,5 +103,6 @@ export function quitChrome(dir: string): void {
   const query = `Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -eq '${exe}' -and $_.CommandLine -like '*--user-data-dir=${dir}*' -and $_.CommandLine -notlike '*--type=*' } | ForEach-Object { $_.ProcessId }`;
   const pid = spawnSync('powershell', ['-NoProfile', '-Command', query], { encoding: 'utf8' }).stdout.trim().split(/\s+/)[0];
   if (!pid) throw new Error(`no Chrome runs on ${dir}`);
-  if (spawnSync('taskkill', ['/PID', pid]).status !== 0) spawnSync('taskkill', ['/F', '/T', '/PID', pid]);
+  const headless = process.env.CAST_TEST_HEADLESS === '1';
+  if (headless || spawnSync('taskkill', ['/PID', pid]).status !== 0) spawnSync('taskkill', ['/F', '/T', '/PID', pid]);
 }
