@@ -14,6 +14,8 @@ const personalEntry = z.object({
     loginStartedAt: z.string().optional(),
     /** Window color, e.g. "#1e88e5", so people tell the windows apart. */
     color: z.string().optional(),
+    /** The browser the profile was made with (see browsers.ts); absent in profiles made with Google Chrome before 0.8.0. */
+    browser: z.string().optional(),
 });
 const slotEntry = z.object({ description: z.string().optional() });
 const personalFile = z.object({ version: z.literal(1).default(1), profiles: z.record(z.string(), personalEntry).default({}) });
@@ -35,7 +37,8 @@ export function loadProfiles(paths) {
     const byKey = new Map();
     const personal = (scope, name, e) => ({
         name, scope, email: e.email, description: e.description, sites: e.sites, ready: true,
-        dir: profileDir(paths, scope, name), createdAt: e.createdAt, lastLoginAt: e.lastLoginAt, loginStartedAt: e.loginStartedAt, color: e.color,
+        dir: profileDir(paths, scope, name, e.browser), createdAt: e.createdAt, lastLoginAt: e.lastLoginAt, loginStartedAt: e.loginStartedAt,
+        color: e.color, browser: e.browser,
     });
     // Lowest precedence first; later writes win: user < project < local.
     for (const [name, e] of Object.entries(user.profiles))
@@ -77,6 +80,7 @@ export function addProfile(paths, name, scope, input) {
     const now = new Date().toISOString();
     const entry = {
         email: input.email || undefined, description: input.description || undefined, sites: [], createdAt: now, color: nextColor(paths),
+        browser: input.browser,
     };
     if (scope === 'project') {
         const project = readProject(paths);

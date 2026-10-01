@@ -3,6 +3,7 @@ import { rmSync } from 'node:fs';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { type CallToolResult, CallToolRequestSchema, ListToolsRequestSchema, type Tool } from '@modelcontextprotocol/sdk/types.js';
+import { type Browser, BrowserError, pickBrowser } from './browsers.js';
 import { windowLook } from './format.js';
 import { Gateway, type GatewayProfile, PROFILE_PARAM } from './gateway.js';
 import { type LoginResult, normalizeSite, startLoginWindow } from './login-window.js';
@@ -116,7 +117,7 @@ async function castTool(paths: CastPaths, gateway: Gateway, tool: string, args: 
       const open = new Set(gateway.openNames().map(n => n.toLowerCase()));
       const profiles = loadProfiles(paths).map(p => ({
         name: p.name, scope: p.scope, email: p.email, description: p.description, sites: p.sites,
-        ready: p.ready, open: open.has(p.name.toLowerCase()), dir: p.dir,
+        ready: p.ready, open: open.has(p.name.toLowerCase()), dir: p.dir, browser: p.browser,
         ...(p.ready ? {} : { note: `Not set up on this machine: ask the user to run /cast:add ${p.name}` }),
       }));
       return ok(profiles.length ? JSON.stringify(profiles, null, 2) : 'No cast profiles yet. The user can create one with /cast:add <name>.');
@@ -140,7 +141,11 @@ async function castTool(paths: CastPaths, gateway: Gateway, tool: string, args: 
       const scope = (optStr(args, 'scope') ?? 'local') as Scope;
       if (!['local', 'project', 'user'].includes(scope)) throw new RegistryError(`Unknown scope "${scope}".`);
       const before = findProfile(paths, name);
-      const p = addProfile(paths, name, scope, { email: optStr(args, 'email'), description: optStr(args, 'description') });
+      // Fails before anything is saved when no browser fits.
+      const browser = pickBrowser();
+      const p = addProfile(paths, name, scope, {
+        email: optStr(args, 'email'), description: optStr(args, 'description'), browser: browser.id === 'custom' ? undefined : browser.id,
+      });
       try {
         await loginWindow(paths, gateway, p);
       } catch (e) {
@@ -203,7 +208,8 @@ function usable(paths: CastPaths, name: string): Profile {
 async function loginWindow(paths: CastPaths, gateway: Gateway, p: Profile): Promise<void> {
   // The Chrome profile can be used by one browser at a time.
   await gateway.close(p.name);
-  const { startedAt, chrome } = await startLoginWindow(p.dir, { name: p.name, sites: p.sites, look: windowLook(p, 'log in') });
+  const browser = profileBrowser(paths, p);
+  const { startedAt, chrome } = await startLoginWindow(p.dir, { name: p.name, sites: p.sites, look: windowLook(p, 'log in'), browser });
   updateProfile(paths, p.name, { loginStartedAt: startedAt.toISOString() });
   // Save the sites as soon as the window closes, if this session is still running then.
   chrome.exited.then(() => finishLogin(paths, p.name)).catch(() => {});
@@ -241,7 +247,20 @@ function loginReport(p: Profile, r: LoginResult): string {
 }
 
 export function gatewayProfile(paths: CastPaths, p: Profile): GatewayProfile {
-  return { name: p.name, dir: p.dir, outputDir: outputDir(paths, p.name), look: windowLook(p) };
+  return { name: p.name, dir: p.dir, outputDir: outputDir(paths, p.name), look: windowLook(p), browser: profileBrowser(paths, p) };
+}
+
+/**
+ * The browser a profile opens in. A profile made before cast recorded browsers was made with Google Chrome:
+ * record that now. A snap browser keeps its profiles in another folder, so it opens only profiles made with it.
+ */
+function profileBrowser(paths: CastPaths, p: Profile): Browser {
+  const browser = pickBrowser({ pinned: p.browser, legacy: !p.browser });
+  if (browser.snap && p.browser !== browser.id) {
+    throw new BrowserError(`Profile "${p.name}" was made with another browser, and ${browser.name} (CAST_CHROME) keeps its profiles in its own folder. Unset CAST_CHROME, or start over with /cast:remove and /cast:add.`);
+  }
+  if (!p.browser && browser.id !== 'custom') updateProfile(paths, p.name, { browser: browser.id });
+  return browser;
 }
 
 function str(args: Args, key: string): string {

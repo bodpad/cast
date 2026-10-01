@@ -1,7 +1,8 @@
 import { type ChildProcess, spawn } from 'node:child_process';
 import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, readlinkSync, rmSync, writeFileSync } from 'node:fs';
-import { homedir, hostname } from 'node:os';
+import { hostname } from 'node:os';
 import { join } from 'node:path';
+import { type Browser, pickBrowser } from './browsers.js';
 import { watchWindows } from './mac-windows.js';
 import { ensurePrivateDir } from './paths.js';
 
@@ -31,6 +32,8 @@ export interface LaunchOptions {
   look?: WindowLook;
   /** Keep running after cast exits (the login window outlives the Claude session). */
   detached?: boolean;
+  /** The profile's browser; by default the preferred one installed. */
+  browser?: Browser;
 }
 
 export interface WindowLook {
@@ -51,12 +54,13 @@ export interface Chrome {
 }
 
 /**
- * Starts a regular Google Chrome on a cast profile, the way a person would, without Playwright's
- * launch flags. --password-store=basic keeps cookie encryption the same in every cast window.
+ * Starts a regular Google Chrome (or another Chromium browser) on a cast profile, the way a person would,
+ * without Playwright's launch flags. --password-store=basic keeps cookie encryption the same in every cast window.
  */
 export async function launchChrome(dir: string, opts: LaunchOptions = {}): Promise<Chrome> {
   const headless = process.env.CAST_TEST_HEADLESS === '1';
   assertCanRun(headless);
+  const browser = opts.browser ?? pickBrowser();
   ensurePrivateDir(dir);
   assertNotRunning(dir);
   const portFile = join(dir, 'DevToolsActivePort');
@@ -82,11 +86,11 @@ export async function launchChrome(dir: string, opts: LaunchOptions = {}): Promi
   // Chrome's own output, to explain a Chrome that exits right away.
   const log = join(dir, LOG_FILE);
   const out = openSync(log, 'w', 0o600);
-  const child = spawn(chromeExecutable(), args, { stdio: ['ignore', out, out], detached: opts.detached });
+  const child = spawn(browser.executable, args, { stdio: ['ignore', out, out], detached: opts.detached });
   closeSync(out);
   if (opts.detached) child.unref();
   // macOS keeps Chrome running when its last window is closed; quit it then, as Linux does.
-  if (process.platform === 'darwin' && !headless && child.pid) watchWindows(child.pid, chromeExecutable());
+  if (process.platform === 'darwin' && !headless && child.pid) watchWindows(child.pid, browser.executable);
   let spawnError: Error | undefined;
   let gone = false;
   const exited = new Promise<void>(resolve => {
@@ -109,7 +113,7 @@ export async function launchChrome(dir: string, opts: LaunchOptions = {}): Promi
 
   // Let a failed spawn surface before callers wait on anything else.
   await new Promise(r => setImmediate(r));
-  if (spawnError) throw notInstalled();
+  if (spawnError) throw notInstalled(browser);
   if (opts.debugPort) {
     for (let i = 0; i < 200 && !gone; i++) {
       if (existsSync(portFile)) {
@@ -122,11 +126,11 @@ export async function launchChrome(dir: string, opts: LaunchOptions = {}): Promi
       await new Promise(r => setTimeout(r, 100));
     }
     await chrome.close();
-    throw spawnError ? notInstalled() : startFailure(log, gone);
+    throw spawnError ? notInstalled(browser) : startFailure(log, gone, browser);
   }
   // Until the lock exists, isRunning() would report a login window that is still starting as closed.
   for (let i = 0; i < 100 && !gone && !isRunning(dir); i++) await new Promise(r => setTimeout(r, 100));
-  if (gone) throw startFailure(log, true);
+  if (gone) throw startFailure(log, true, browser);
   return chrome;
 }
 
@@ -143,29 +147,18 @@ function assertCanRun(headless: boolean): void {
 }
 
 /** Why Chrome did not come up, from the last lines it printed. */
-function startFailure(log: string, exited: boolean): ChromeError {
-  if (!exited) return new ChromeError(`Chrome did not start within 20 seconds. Its output is in ${log}.`);
+function startFailure(log: string, exited: boolean, browser: Browser): ChromeError {
+  if (!exited) return new ChromeError(`${browser.name} did not start within 20 seconds. Its output is in ${log}.`);
   let text = '';
   try { text = readFileSync(log, 'utf8'); } catch { /* no output */ }
   if (/Missing X server|cannot open display|Failed to connect to Wayland/i.test(text)) {
-    return new ChromeError('Chrome cannot open a window: the display is not reachable. Start Claude Code from a terminal in your desktop session, not over plain SSH.');
+    return new ChromeError(`${browser.name} cannot open a window: the display is not reachable. Start Claude Code from a terminal in your desktop session, not over plain SSH.`);
   }
   if (/profile appears to be in use|ProcessSingleton/i.test(text)) {
     return new ChromeError('This profile is already open in another Chrome window (a login window or another Claude session). Close that window and try again.');
   }
   const last = text.split('\n').map(l => l.replace(/^\[[^\]]*\]\s*/, '').trim()).filter(l => l && !/^Read channel/.test(l)).slice(-2).join(' ');
-  return new ChromeError(`Chrome exited right after starting${last ? `: ${last}` : ''}. Its output is in ${log}.`);
-}
-
-const MAC_CHROME = 'Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
-
-export function chromeExecutable(): string {
-  if (process.env.CAST_CHROME) return process.env.CAST_CHROME;
-  if (process.platform === 'darwin') {
-    const user = join(homedir(), MAC_CHROME);
-    return existsSync(user) ? user : `/${MAC_CHROME}`;
-  }
-  return existsSync('/opt/google/chrome/chrome') ? '/opt/google/chrome/chrome' : 'google-chrome';
+  return new ChromeError(`${browser.name} exited right after starting${last ? `: ${last}` : ''}. Its output is in ${log}.`);
 }
 
 /**
@@ -267,6 +260,6 @@ export function assertNotRunning(dir: string): void {
   if (isRunning(dir)) throw new ChromeError('This profile is already open in another Chrome window (a login window or another Claude session). Close that window and try again.');
 }
 
-function notInstalled(): ChromeError {
-  return new ChromeError(`Google Chrome is not installed (${chromeExecutable()} not found): install it from https://www.google.com/chrome/, or set CAST_CHROME to its path.`);
+function notInstalled(browser: Browser): ChromeError {
+  return new ChromeError(`${browser.name} cannot be started (${browser.executable} not found): install Google Chrome from https://www.google.com/chrome/, or set CAST_CHROME to the path of a Chromium browser.`);
 }

@@ -24,7 +24,7 @@ jobs:
       - name: dist/src is committed and up to date
         run: git diff --exit-code -- dist/src || (echo "::error::Run npm run build and commit dist/src" && exit 1)
       - name: Chrome
-        run: '"$(node -e "import(\"./dist/src/chrome.js\").then(m => console.log(m.chromeExecutable()))")" --version'
+        run: '"$(node -e "import(\"./dist/src/browsers.js\").then(m => console.log(m.pickBrowser().executable))")" --version'
       - run: node --test --test-concurrency=1 dist/test/*.test.js
       - name: One version everywhere, with a CHANGELOG.md entry
         if: matrix.os == 'ubuntu-latest'

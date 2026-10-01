@@ -1,3 +1,4 @@
+import { browserName } from './browsers.js';
 /** Compact block for the SessionStart hook; a hint on how to add people when there are none. */
 export function briefList(profiles) {
     if (!profiles.length)
@@ -13,6 +14,8 @@ export function briefList(profiles) {
         line += p.description ? ` — ${p.description}.` : ' — role unknown (no description).';
         if (p.sites.length)
             line += ` Sites: ${p.sites.join(', ')}`;
+        if (p.browser && p.browser !== 'chrome')
+            line += ` Browser: ${browserName(p.browser)}.`;
         return line;
     });
     return ['cast: browser users available (open with cast_open / browser_* tools with profile=<name>):', ...lines].join('\n');

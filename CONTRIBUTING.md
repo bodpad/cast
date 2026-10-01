@@ -3,7 +3,8 @@
 ## How it works
 
 - `src/mcp.ts` — the `cast` MCP server. It exposes `cast_*` tools and all Playwright browser tools (`browser_click`, `browser_snapshot`, …) with an extra required `profile` parameter.
-- `src/chrome.ts` — starts a regular Google Chrome on a profile, restoring the last session, optionally with a DevTools port.
+- `src/browsers.ts` — finds the Chromium browsers installed (Chrome, Edge, Brave, Chromium, Vivaldi; native before snap) and picks the one for a profile.
+- `src/chrome.ts` — starts that browser on a profile, restoring the last session, optionally with a DevTools port.
 - `src/gateway.ts` — for each open profile, starts Chrome with a DevTools port and attaches a [`@playwright/mcp`](https://github.com/microsoft/playwright-mcp) child to it (`--cdp-endpoint`); routes each `browser_*` call to it.
 - `src/mac-windows.ts` — macOS only: a detached watcher that quits a cast Chrome once its last window is closed.
 - `src/login-window.ts` — the `/cast:add` and `/cast:login` window: the same Chrome without a DevTools port, because a port makes SSO bot checks refuse the login. Starts it detached and reads visited hosts from the profile's History once it is closed.
@@ -30,11 +31,17 @@ Chrome and Playwright MCP quirks found the hard way (Linux, Chrome 151 and macOS
 - **A busy profile.** A second Chrome on the same folder hands its URLs to the running one and exits; cast checks `SingletonLock` first and reports "already open".
 - **The login window does not block.** A tool call running over ~120 s moves to the background, and quitting the session cancelled it, so `cast_add`/`cast_login` return as soon as Chrome runs. Chrome is started detached and outlives the session. The profile records `loginStartedAt`; the login is finished (sites read from History and saved) when the window closes, by the watcher in the same MCP process, by any later cast tool call, or by the `SessionStart` hook. `cast_login_result` reports it to Claude. `launchChrome` waits for `SingletonLock`, or a window still starting would look closed.
 - **macOS: closing the last window does not quit Chrome.** The app keeps running without windows, so a closed login window would look open (`SingletonLock` stays) and History would not be flushed. For every visible cast Chrome, `launchChrome` starts `mac-windows.js` detached; once a second it lists that process's windows with CoreGraphics (`CGWindowListCopyWindowInfo` through `osascript -l JavaScript`; no Screen Recording or Accessibility permission, so no titles). Chrome keeps hidden helper windows (500×500, menu bar strips, omnibox popups) that look exactly like a minimized window, so a window counts only after it was seen on screen and at least 400×300 (a browser window is at least 500×375). When all such windows are gone and nothing is on screen, the watcher sends `SIGINT`. It checks that the pid still runs the same Chrome executable before signalling. `--password-store=basic` is ignored on macOS: all cast windows use the "Chrome Safe Storage" keychain item, so they still read the same cookies. No `DISPLAY` check.
+- **Chromium browsers only.** Playwright MCP attaches with `--cdp-endpoint`, which only Chromium speaks; Playwright's Firefox is a patched build, not the Firefox people log in with. Edge, Brave, Chromium and Vivaldi take the same flags and keep the same profile files (`History`, `Preferences`, `Sessions`, `SingletonLock`); some ignore the theme color.
+- **A profile keeps its browser** (`browser` in the profile list): on macOS each browser encrypts cookies with its own keychain item, and an older browser refuses a profile a newer one wrote. Profiles from before 0.8.0 have no `browser` and were made with Google Chrome; it is recorded on first use. `CAST_CHROME` overrides the choice and is not recorded.
+- **Snap.** A snap cannot read hidden folders in home, so a snap browser's profiles live in `~/snap/<snap>/common/cast/` (gone with `snap remove`). `/snap/bin/<name>` links to `/usr/bin/snap`, and Ubuntu's `/usr/bin/chromium-browser` is a script that runs `/snap/bin/chromium`; both are recognized. Native installs of any browser come before snaps.
+- **No Flatpak.** `flatpak run` starts the browser in its own PID namespace (the `SingletonLock` pid is not ours, signals reach `bwrap`) and without access to `~/.local/share`. cast names a Flatpak browser in the error and asks for a native one.
 - **Install.** A marketplace install runs `npm ci --ignore-scripts`; `--plugin-dir` does not, so run `npm install` yourself. `dist/src` is committed because there is no build step.
 
 ## Not done yet
 
 - Windows.
+- Firefox and Safari: they do not speak the Chrome DevTools protocol that Playwright MCP attaches with.
+- Flatpak browsers (see above).
 - A lock for one profile used by two Claude sessions (today Chrome refuses a busy folder and cast shows a hint).
 - Detecting logged-in or expired state per site, `/cast:check`, a clean profile for sign-up tests.
 - Whether to hide `browser_run_code_unsafe` (it can read cookies).

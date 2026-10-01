@@ -16,6 +16,8 @@ const personalEntry = z.object({
   loginStartedAt: z.string().optional(),
   /** Window color, e.g. "#1e88e5", so people tell the windows apart. */
   color: z.string().optional(),
+  /** The browser the profile was made with (see browsers.ts); absent in profiles made with Google Chrome before 0.8.0. */
+  browser: z.string().optional(),
 });
 const slotEntry = z.object({ description: z.string().optional() });
 
@@ -40,6 +42,7 @@ export interface Profile {
   lastLoginAt?: string;
   loginStartedAt?: string;
   color?: string;
+  browser?: string;
 }
 
 /** Distinct hues first: two or three profiles open side by side get clearly different windows. */
@@ -62,7 +65,8 @@ export function loadProfiles(paths: CastPaths): Profile[] {
 
   const personal = (scope: Scope, name: string, e: PersonalEntry): Profile => ({
     name, scope, email: e.email, description: e.description, sites: e.sites, ready: true,
-    dir: profileDir(paths, scope, name), createdAt: e.createdAt, lastLoginAt: e.lastLoginAt, loginStartedAt: e.loginStartedAt, color: e.color,
+    dir: profileDir(paths, scope, name, e.browser), createdAt: e.createdAt, lastLoginAt: e.lastLoginAt, loginStartedAt: e.loginStartedAt,
+    color: e.color, browser: e.browser,
   });
 
   // Lowest precedence first; later writes win: user < project < local.
@@ -95,11 +99,16 @@ export interface ProfileInput {
   description?: string;
 }
 
+export interface NewProfile extends ProfileInput {
+  /** The browser it is made with; fixed for the profile's life. */
+  browser?: string;
+}
+
 /**
  * Registers a profile before its first login. For scope "project" the slot (name + description)
  * goes to the committed .claude/cast.yaml and the personal part to the developer's local list.
  */
-export function addProfile(paths: CastPaths, name: string, scope: Scope, input: ProfileInput): Profile {
+export function addProfile(paths: CastPaths, name: string, scope: Scope, input: NewProfile): Profile {
   validateName(name);
   const existing = findProfile(paths, name);
   if (existing?.ready) {
@@ -109,6 +118,7 @@ export function addProfile(paths: CastPaths, name: string, scope: Scope, input: 
   const now = new Date().toISOString();
   const entry: PersonalEntry = {
     email: input.email || undefined, description: input.description || undefined, sites: [], createdAt: now, color: nextColor(paths),
+    browser: input.browser,
   };
 
   if (scope === 'project') {

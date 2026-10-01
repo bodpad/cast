@@ -7,7 +7,7 @@ import { briefList, windowLook } from '../src/format.js';
 import { normalizeSite, pageUrl } from '../src/login-window.js';
 import { type MacWindow, windowsClosed } from '../src/mac-windows.js';
 import { classifyHosts, isSignInHost } from '../src/sites.js';
-import { ensurePrivateDir, listFile, projectIdFor, resolvePaths } from '../src/paths.js';
+import { ensurePrivateDir, listFile, profileDir, projectIdFor, resolvePaths } from '../src/paths.js';
 import {
   PROFILE_COLORS, RegistryError, addProfile, editProfile, ensureColor, findProfile, loadProfiles, removeProfile, updateProfile, validateName,
 } from '../src/registry.js';
@@ -36,6 +36,14 @@ describe('paths', () => {
     assert.equal(p.dataDir, '/d/cast');
   });
 
+  test('a snap browser keeps profiles in ~/snap/<snap>/common/cast', () => {
+    const p = resolvePaths({ CAST_PROJECT_DIR: '/w/app' });
+    const home = p.snapDir.replace(/\/snap$/, '');
+    assert.equal(profileDir(p, 'user', 'Sam', 'snap:chromium'), join(home, 'snap', 'chromium', 'common', 'cast', 'user', 'sam'));
+    assert.equal(profileDir(p, 'local', 'Sam', 'brave'), join(p.dataDir, 'projects', p.projectId, 'sam'));
+    assert.equal(resolvePaths({ CAST_DATA_DIR: '/d' }).snapDir, '/d/snap');
+  });
+
   test('profile dirs are private (0700)', () => {
     const dir = join(sb.root, 'p');
     mkdirSync(dir, { mode: 0o755 });
@@ -47,6 +55,16 @@ describe('paths', () => {
 });
 
 describe('registry', () => {
+  test('records the browser a profile is made with; older profiles have none', () => {
+    addProfile(sb.paths, 'Sam', 'local', { browser: 'snap:chromium' });
+    addProfile(sb.paths, 'Old', 'local', {});
+    const sam = findProfile(sb.paths, 'Sam')!;
+    assert.equal(sam.browser, 'snap:chromium');
+    assert.equal(sam.dir, profileDir(sb.paths, 'local', 'Sam', 'snap:chromium'));
+    assert.equal(findProfile(sb.paths, 'Old')!.browser, undefined);
+    assert.equal(updateProfile(sb.paths, 'Old', { browser: 'chrome' }).browser, 'chrome');
+  });
+
   test('validates names', () => {
     for (const ok of ['Sam', 'elon_2', 'a-b']) assert.equal(validateName(ok), ok);
     for (const bad of ['', '-x', 'a b', 'x/y', 'a'.repeat(41)]) assert.throws(() => validateName(bad), RegistryError);
@@ -287,7 +305,7 @@ describe('chrome start errors', () => {
   const dir = () => join(sb.root, 'profile');
 
   test('Chrome not installed', () => withEnv({ CAST_TEST_HEADLESS: '1', CAST_CHROME: join(sb.root, 'nope') }, () =>
-    assert.rejects(launchChrome(dir()), /Google Chrome is not installed .*CAST_CHROME/)));
+    assert.rejects(launchChrome(dir()), /cannot be started .*nope not found.*CAST_CHROME/)));
 
   test('no display', { skip: process.platform !== 'linux' && 'Linux only' }, () => withEnv({ CAST_TEST_HEADLESS: undefined, DISPLAY: undefined, WAYLAND_DISPLAY: undefined }, () =>
     assert.rejects(launchChrome(dir()), /No display .*not over plain SSH/)));
@@ -315,6 +333,8 @@ describe('format', () => {
     assert.match(briefList([]), /no browser users yet.*\/cast:add <name>/);
     addProfile(sb.paths, 'Ali', 'local', {});
     assert.match(briefList(loadProfiles(sb.paths)), /- Ali \(local\) — role unknown \(no description\)\./);
+    addProfile(sb.paths, 'Bo', 'local', { description: 'admin', browser: 'snap:chromium' });
+    assert.match(briefList(loadProfiles(sb.paths)), /- Bo \(local\) — admin\. Browser: Chromium \(snap\)\./);
   });
 
   test('sign-in hosts are told apart from sites', () => {

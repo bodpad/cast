@@ -49,7 +49,7 @@ export class Gateway {
     }
     async start(profile) {
         ensurePrivateDir(profile.outputDir);
-        const chrome = await launchChrome(profile.dir, { restore: true, debugPort: true, look: profile.look });
+        const chrome = await launchChrome(profile.dir, { restore: true, debugPort: true, look: profile.look, browser: profile.browser });
         const client = new Client({ name: 'cast', version: VERSION });
         const child = { profile, chrome, client };
         const transport = spawnChild(['--cdp-endpoint', chrome.endpoint, '--output-dir', profile.outputDir], profile.outputDir);

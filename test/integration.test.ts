@@ -7,7 +7,8 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { chromium } from 'playwright-core';
 import { Gateway } from '../src/gateway.js';
 import { execFileSync, spawn } from 'node:child_process';
-import { chromeExecutable, isRunning, launchChrome } from '../src/chrome.js';
+import { pickBrowser } from '../src/browsers.js';
+import { isRunning, launchChrome } from '../src/chrome.js';
 import { type LoginWindow, openLoginWindow, readLogin, startLoginWindow } from '../src/login-window.js';
 import { outputDir } from '../src/paths.js';
 import { addProfile, findProfile, updateProfile } from '../src/registry.js';
@@ -61,7 +62,7 @@ async function visitAndClose(w: LoginWindow, dir: string, url: string, done: () 
     return;
   }
   await new Promise(r => setTimeout(r, 1500));
-  spawn(chromeExecutable(), [`--user-data-dir=${dir}`, '--password-store=basic', url], { stdio: 'ignore' });
+  spawn(pickBrowser().executable, [`--user-data-dir=${dir}`, '--password-store=basic', url], { stdio: 'ignore' });
   await until(done);
   await new Promise(r => setTimeout(r, 500));
   w.close();
