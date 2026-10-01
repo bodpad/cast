@@ -82,7 +82,7 @@ Names: latin letters, digits, `-`, `_`, up to 40 characters, starting with a let
 - **On macOS, a small watcher** per cast window (`osascript`, CoreGraphics window list) that quits that Chrome once its last window is closed.
 - **On Windows, `taskkill` without `/F`** to close a cast window the way its close button does, so cookies are saved.
 
-cast sends nothing anywhere by itself and has no telemetry. What Claude reads in a cast window (pages, snapshots, screenshots) goes to the model as part of your Claude session, like any other tool result. Details: [PRIVACY.md](PRIVACY.md), [SECURITY.md](SECURITY.md).
+What Claude reads in a cast window goes to the model as part of your Claude session: see [Privacy](#privacy) and [SECURITY.md](SECURITY.md).
 
 ## Scopes and teams
 
@@ -96,8 +96,8 @@ A project slot holds only a name and description, never logins. Commit `.claude/
 
 ## Where data lives
 
-- Profile lists: `~/.config/claude-cast/` (plain YAML, editable; `$XDG_CONFIG_HOME` if set); on Windows `%APPDATA%\claude-cast\`.
-- Chrome data with logins: `~/.local/share/claude-cast/` (`$XDG_DATA_HOME` if set), readable only by you; on Windows `%LOCALAPPDATA%\claude-cast\`. A snap browser (Ubuntu's Chromium) cannot read hidden folders, so its profiles are in `~/snap/<browser>/common/claude-cast/`.
+- Profile lists: `~/.config/claude-cast/` (plain YAML, editable); on Windows `%APPDATA%\claude-cast\`.
+- Chrome data with logins: `~/.local/share/claude-cast/`, readable only by you; on Windows `%LOCALAPPDATA%\claude-cast\`. A snap browser (Ubuntu's Chromium) cannot read hidden folders, so its profiles are in `~/snap/<browser>/common/claude-cast/`.
 
 ## Uninstall
 
@@ -126,7 +126,7 @@ Team slots in a project's `.claude/claude-cast.yaml` stay in that repository; de
 
 ## Troubleshooting
 
-- **No window / no browser found:** cast looks for Google Chrome, Edge, Brave, Chromium and Vivaldi in their usual places and in `PATH` (macOS: `/Applications` or `~/Applications`; Windows: `Program Files` or `AppData\Local`); set `CAST_CHROME` to the browser's executable if it lives elsewhere. A Flatpak browser cannot be used: its sandbox hides the profile folder and the process; install the .deb or .rpm package instead. Snap browsers work. On Linux, start Claude Code from a desktop session (`DISPLAY` set), not plain SSH. When Chrome exits right after starting, cast shows its last message; the full output is in `cast-chrome.log` in the profile folder (`dir` in `cast_list`).
+- **No window / no browser found:** cast looks for Google Chrome, Edge, Brave, Chromium and Vivaldi in their usual places and in `PATH` (macOS: `/Applications` or `~/Applications`; Windows: `Program Files` or `AppData\Local`); set `CAST_CHROME` to the browser's executable if it lives elsewhere. A Flatpak browser cannot be used: its sandbox hides the profile folder and the process; install the .deb or .rpm package instead. Snap browsers work. On Linux, start Claude Code from a desktop session (`DISPLAY` set), not plain SSH. When Chrome exits right after starting, cast shows its last message; the full output is in `cast-chrome.log` in the profile folder: `~/.local/share/claude-cast/projects/<project>-<hash>/<name>/`, or `…/user/<name>/` for `--scope user` (Claude can tell you the exact path).
 - **"Profile is already open":** one profile, one Chrome. Close the other window (yours from `/cast:add` or `/cast:open`, or another Claude session).
 - **SSO blocks the login:** log in only in the `/cast:add` or `/cast:open` window; it is a plain Chrome nothing controls.
 - **Claude says your window is still open:** close it (titled `… · your window · cast`), then tell Claude. On macOS, closing a cast window quits that Chrome within a second; a minimized window counts as open.
