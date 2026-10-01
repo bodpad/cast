@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.0 — 2026-10-01
+
+### Added
+- macOS support. cast finds Google Chrome in `/Applications` or `~/Applications` (`CAST_CHROME` still overrides it). Closing a cast window quits that Chrome, as on Linux, so a closed login window is noticed and its sites are saved; a minimized window counts as open.
+
+### Fixed
+- `npm test` runs on Node.js 22 and newer.
+
 ## 0.6.3 — 2026-09-30
 
 ### Changed
