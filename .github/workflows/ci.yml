@@ -6,8 +6,13 @@ on:
     branches: [main]
 
 jobs:
-  test:
-    runs-on: ubuntu-latest
+  os:
+    name: test (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -19,7 +24,16 @@ jobs:
       - name: dist/src is committed and up to date
         run: git diff --exit-code -- dist/src || (echo "::error::Run npm run build and commit dist/src" && exit 1)
       - name: Chrome
-        run: google-chrome --version
-      - run: node --test --test-concurrency=1 dist/test/
+        run: '"$(node -e "import(\"./dist/src/chrome.js\").then(m => console.log(m.chromeExecutable()))")" --version'
+      - run: node --test --test-concurrency=1 dist/test/*.test.js
       - name: Plugin manifests
+        if: matrix.os == 'ubuntu-latest'
         run: npx -y @anthropic-ai/claude-code plugin validate --strict .
+
+  # The required check on main is "test": one result for all systems.
+  test:
+    needs: os
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ needs.os.result }}" = success

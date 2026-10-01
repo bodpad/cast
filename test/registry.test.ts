@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, test } from 'node:test';
 import { applyColor, launchChrome, nameSessionWindows } from '../src/chrome.js';
 import { briefList, windowLook } from '../src/format.js';
 import { normalizeSite, pageUrl } from '../src/login-window.js';
+import { type MacWindow, windowsClosed } from '../src/mac-windows.js';
 import { classifyHosts, isSignInHost } from '../src/sites.js';
 import { ensurePrivateDir, listFile, projectIdFor, resolvePaths } from '../src/paths.js';
 import {
@@ -240,6 +241,30 @@ describe('restored window names', () => {
   });
 });
 
+describe('macOS window watcher', () => {
+  const win = (id: number, onscreen: boolean, width = 1200, height = 900): MacWindow => ({ id, onscreen, width, height });
+  // Chrome's hidden helpers: a 500x500 window, menu bar strips, omnibox popups. None of them is ever on screen.
+  const helpers = [win(1, false, 500, 500), win(2, false, 1680, 24), win(3, false, 866, 138)];
+
+  test('waits for a window to show before deciding anything', () => {
+    assert.equal(windowsClosed(new Set(), helpers), false);
+  });
+
+  test('a minimized window or one on another Space keeps Chrome running', () => {
+    const seen = new Set<number>();
+    assert.equal(windowsClosed(seen, [...helpers, win(10, true)]), false);
+    assert.equal(windowsClosed(seen, [...helpers, win(10, false)]), false);
+  });
+
+  test('closing the last window quits, a popup on screen is not a window', () => {
+    const seen = new Set<number>();
+    windowsClosed(seen, [...helpers, win(10, true), win(11, true, 866, 138)]);
+    assert.equal(windowsClosed(seen, [...helpers, win(10, false), win(12, true)]), false, 'a new window opened');
+    assert.equal(windowsClosed(seen, [...helpers, win(12, false)]), false, 'the new one is minimized');
+    assert.equal(windowsClosed(seen, helpers), true);
+  });
+});
+
 describe('chrome start errors', () => {
   /** Runs `fn` with these environment variables (undefined unsets one), then restores them. */
   async function withEnv(vars: Record<string, string | undefined>, fn: () => Promise<unknown>) {
@@ -264,7 +289,7 @@ describe('chrome start errors', () => {
   test('Chrome not installed', () => withEnv({ CAST_TEST_HEADLESS: '1', CAST_CHROME: join(sb.root, 'nope') }, () =>
     assert.rejects(launchChrome(dir()), /Google Chrome is not installed .*CAST_CHROME/)));
 
-  test('no display', () => withEnv({ CAST_TEST_HEADLESS: undefined, DISPLAY: undefined, WAYLAND_DISPLAY: undefined }, () =>
+  test('no display', { skip: process.platform !== 'linux' && 'Linux only' }, () => withEnv({ CAST_TEST_HEADLESS: undefined, DISPLAY: undefined, WAYLAND_DISPLAY: undefined }, () =>
     assert.rejects(launchChrome(dir()), /No display .*not over plain SSH/)));
 
   test('display not reachable', () => withEnv({ CAST_TEST_HEADLESS: '1', CAST_CHROME: fakeChrome('[1:1:0930/1:ERROR:ozone_platform_x11.cc:257] Missing X server or $DISPLAY') }, () =>

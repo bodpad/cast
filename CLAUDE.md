@@ -13,7 +13,7 @@ Core ideas:
 - **Claude knows who is who:** a `SessionStart` hook lists profiles (name, email, role, sites) in every session.
 - Scopes like Claude's own: `local` (this project), `project` (team slot in `.claude/cast.yaml`, no credentials), `user` (all projects).
 
-Status: Linux only. Installed as `/plugin marketplace add bodpad/cast`, `/plugin install cast@bodpad`. Planned work is under "Not done yet" in `CONTRIBUTING.md`.
+Status: Linux and macOS. Installed as `/plugin marketplace add bodpad/cast`, `/plugin install cast@bodpad`. Planned work is under "Not done yet" in `CONTRIBUTING.md`.
 
 @CONTRIBUTING.md
 

@@ -7,8 +7,8 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { chromium } from 'playwright-core';
 import { Gateway } from '../src/gateway.js';
 import { execFileSync, spawn } from 'node:child_process';
-import { isRunning } from '../src/chrome.js';
-import { type LoginWindow, openLoginWindow, startLoginWindow } from '../src/login-window.js';
+import { chromeExecutable, isRunning, launchChrome } from '../src/chrome.js';
+import { type LoginWindow, openLoginWindow, readLogin, startLoginWindow } from '../src/login-window.js';
 import { outputDir } from '../src/paths.js';
 import { addProfile, findProfile, updateProfile } from '../src/registry.js';
 import { type Sandbox, type TestSite, sandbox, startSite, text } from './helpers.js';
@@ -61,7 +61,7 @@ async function visitAndClose(w: LoginWindow, dir: string, url: string, done: () 
     return;
   }
   await new Promise(r => setTimeout(r, 1500));
-  spawn('/opt/google/chrome/chrome', [`--user-data-dir=${dir}`, '--password-store=basic', url], { stdio: 'ignore' });
+  spawn(chromeExecutable(), [`--user-data-dir=${dir}`, '--password-store=basic', url], { stdio: 'ignore' });
   await until(done);
   await new Promise(r => setTimeout(r, 500));
   w.close();
@@ -214,6 +214,24 @@ describe('gateway', () => {
 
   test('browser_close is not proxied', async () => {
     await assert.rejects(gateway.call(gp('Sam'), 'browser_close', {}), /cast_close/);
+  });
+});
+
+describe('macOS', { skip: !(process.platform === 'darwin' && headed) && 'macOS with CAST_TEST_HEADED=1' }, () => {
+  test('closing the last window quits Chrome, as on Linux, and keeps History', async () => {
+    const dir = join(sb.root, 'mac-close');
+    const since = new Date(Date.now() - 1000);
+    const from = site.hits.length;
+    const chrome = await launchChrome(dir, { debugPort: true, urls: [`${site.url}/login?user=mac`] });
+    await until(() => site.hits.slice(from).some(h => h === '/'));
+    // Let the watcher see the window on screen, then close its only tab as the human would.
+    await new Promise(r => setTimeout(r, 2000));
+    const pages = (await (await fetch(`${chrome.endpoint}/json/list`)).json() as { id: string; type: string }[]).filter(t => t.type === 'page');
+    for (const page of pages) await fetch(`${chrome.endpoint}/json/close/${page.id}`);
+    const quit = await Promise.race([chrome.exited.then(() => true), new Promise(r => setTimeout(() => r(false), 10_000))]);
+    if (!quit) await chrome.close();
+    assert.equal(quit, true, 'Chrome kept running without windows');
+    assert.ok((await readLogin(dir, since)).sites.includes(new URL(site.url).host));
   });
 });
 

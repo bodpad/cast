@@ -24,14 +24,14 @@ body:
     id: chrome
     attributes:
       label: Chrome version
-      description: "`google-chrome --version`, and how it is installed (deb, snap, flatpak, `CAST_CHROME`)"
+      description: "`google-chrome --version` (macOS: `\"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome\" --version`), and how it is installed (deb, snap, flatpak, dmg, `CAST_CHROME`)"
     validations:
       required: true
   - type: input
     id: os
     attributes:
-      label: Linux distribution and desktop
-      description: e.g. Ubuntu 24.04, GNOME on Wayland
+      label: OS (Linux distribution and desktop, or macOS version)
+      description: e.g. Ubuntu 24.04, GNOME on Wayland; macOS 15
     validations:
       required: true
   - type: input

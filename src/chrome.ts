@@ -1,7 +1,8 @@
 import { type ChildProcess, spawn } from 'node:child_process';
 import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, readlinkSync, rmSync, writeFileSync } from 'node:fs';
-import { hostname } from 'node:os';
+import { homedir, hostname } from 'node:os';
 import { join } from 'node:path';
+import { watchWindows } from './mac-windows.js';
 import { ensurePrivateDir } from './paths.js';
 
 export class ChromeError extends Error {}
@@ -84,6 +85,8 @@ export async function launchChrome(dir: string, opts: LaunchOptions = {}): Promi
   const child = spawn(chromeExecutable(), args, { stdio: ['ignore', out, out], detached: opts.detached });
   closeSync(out);
   if (opts.detached) child.unref();
+  // macOS keeps Chrome running when its last window is closed; quit it then, as Linux does.
+  if (process.platform === 'darwin' && !headless && child.pid) watchWindows(child.pid, chromeExecutable());
   let spawnError: Error | undefined;
   let gone = false;
   const exited = new Promise<void>(resolve => {
@@ -131,10 +134,10 @@ const LOG_FILE = 'cast-chrome.log';
 
 /** Environment problems, each in one sentence with what to do. */
 function assertCanRun(headless: boolean): void {
-  if (process.platform !== 'linux') {
-    throw new ChromeError(`cast works on Linux only for now (this is ${process.platform}).`);
+  if (process.platform !== 'linux' && process.platform !== 'darwin') {
+    throw new ChromeError(`cast works on Linux and macOS only for now (this is ${process.platform}).`);
   }
-  if (!headless && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY) {
+  if (process.platform === 'linux' && !headless && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY) {
     throw new ChromeError('No display to show Chrome on (DISPLAY and WAYLAND_DISPLAY are not set): start Claude Code from a terminal in your desktop session, not over plain SSH.');
   }
 }
@@ -154,8 +157,14 @@ function startFailure(log: string, exited: boolean): ChromeError {
   return new ChromeError(`Chrome exited right after starting${last ? `: ${last}` : ''}. Its output is in ${log}.`);
 }
 
+const MAC_CHROME = 'Applications/Google Chrome.app/Contents/MacOS/Google Chrome';
+
 export function chromeExecutable(): string {
   if (process.env.CAST_CHROME) return process.env.CAST_CHROME;
+  if (process.platform === 'darwin') {
+    const user = join(homedir(), MAC_CHROME);
+    return existsSync(user) ? user : `/${MAC_CHROME}`;
+  }
   return existsSync('/opt/google/chrome/chrome') ? '/opt/google/chrome/chrome' : 'google-chrome';
 }
 

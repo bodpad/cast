@@ -10,7 +10,7 @@ Works with corporate SSO (Microsoft Entra, Okta, Google), because you log in you
 
 ## Install
 
-Needs Linux with a desktop, Google Chrome and Node.js 20+.
+Needs Linux with a desktop or macOS, Google Chrome and Node.js 20+.
 
 Start Claude Code (`claude`) and type these at its prompt. They are Claude Code commands, not shell commands:
 
@@ -62,7 +62,7 @@ Names: latin letters, digits, `-`, `_`.
 ## Good to know
 
 - **Windows are regular, visible Chrome.** Watch, take over or close them; Claude reopens a window when needed.
-- **Each person's window has its own color** and their name in the title bar (`Sam (sends messages) · cast`), so two windows side by side are easy to tell apart. cast sets the theme color each time it opens the window.
+- **Each person's window has its own color** and their name as the window title (`Sam (sends messages) · cast`; on Linux in the title bar), so two windows side by side are easy to tell apart. cast sets the theme color each time it opens the window.
 - **Logins and tabs are kept** between sessions.
 - **Claude picks people by description.** It never guesses a role from a profile name. If no profile or several fit ("the vendor"), it asks you once and saves your answer. Change a description any time with `/cast:edit <name>`.
 - **Claude never logs in.** When a session expires, it asks you to run `/cast:login <name>`.
@@ -105,10 +105,10 @@ Team slots in a project's `.claude/cast.yaml` stay in that repository; delete th
 
 ## Troubleshooting
 
-- **No window / Chrome not found:** check `google-chrome --version`; set `CAST_CHROME` if Chrome lives elsewhere. Start Claude Code from a desktop session (`DISPLAY` set), not plain SSH. When Chrome exits right after starting, cast shows its last message; the full output is in `cast-chrome.log` in the profile folder (`dir` in `cast_list`).
+- **No window / Chrome not found:** check `google-chrome --version` (macOS: Chrome in `/Applications` or `~/Applications`); set `CAST_CHROME` if Chrome lives elsewhere. On Linux, start Claude Code from a desktop session (`DISPLAY` set), not plain SSH. When Chrome exits right after starting, cast shows its last message; the full output is in `cast-chrome.log` in the profile folder (`dir` in `cast_list`).
 - **"Profile is already open":** one profile, one Chrome. Close the other window (a login window or another Claude session).
 - **SSO blocks the login:** log in only in the `/cast:add` or `/cast:login` window; it is a plain Chrome nothing controls.
-- **Claude says the login window is still open:** close it (the window titled `… · log in · cast`), then tell Claude.
+- **Claude says the login window is still open:** close it (the window titled `… · log in · cast`), then tell Claude. On macOS, closing a cast window quits that Chrome within a second; a minimized window counts as open.
 - **Profiles missing:** local profiles belong to one project folder; use `--scope user` for profiles you need everywhere.
 
 ## Similar tools
