@@ -22,9 +22,7 @@ Start Claude Code (`claude`) and type these at its prompt. They are Claude Code 
 
 From a terminal instead: `claude plugin marketplace add cosmotools/claude-cast`, then `claude plugin install cast@cosmotools`, then start `claude`.
 
-Or add cast from Anthropic's directory on claude.ai (**Customize → Plugins → Discover**); Claude Code then loads it as `cast@synced` when you sign in with that claude.ai account. Install it one way, not both: a marketplace install takes precedence over the synced copy.
-
-cast works in Claude Code, and in Cowork when the session runs on your computer. It does nothing in claude.ai chat: it starts browsers on your computer, which a chat cannot reach.
+cast works in Claude Code on your computer: it starts browsers there. It does nothing in claude.ai chat, which cannot reach your computer.
 
 ## Update
 
@@ -109,8 +107,6 @@ In a Claude Code session:
 ```
 
 From a terminal instead: `claude plugin uninstall cast@cosmotools`, then `claude plugin marketplace remove cosmotools`.
-
-Added from claude.ai: remove it in **Customize → Plugins** there.
 
 Uninstalling keeps profiles and logins. To delete them too, close all cast windows and remove both folders:
 

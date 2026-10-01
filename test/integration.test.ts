@@ -254,6 +254,12 @@ describe('cast MCP server', () => {
     for (const n of ['cast_list', 'cast_open', 'cast_close', 'cast_add', 'cast_login', 'cast_login_result', 'cast_set_sites', 'cast_update', 'cast_remove', 'browser_click']) {
       assert.ok(names.includes(n), n);
     }
+    // The Anthropic directory requires a title and read-only/destructive hints on every tool.
+    for (const t of tools) {
+      assert.ok(t.annotations?.title, `${t.name} has a title`);
+      assert.equal(typeof t.annotations?.readOnlyHint, 'boolean', `${t.name} has readOnlyHint`);
+      if (!t.annotations?.readOnlyHint) assert.equal(typeof t.annotations?.destructiveHint, 'boolean', `${t.name} has destructiveHint`);
+    }
   });
 
   test('cast_list, browser_* and cast_set_sites work without leaking cookies', async () => {
