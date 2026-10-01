@@ -10,7 +10,7 @@ import { type MacWindow, windowsClosed } from '../src/mac-windows.js';
 import { classifyHosts, isSignInHost } from '../src/sites.js';
 import { ensurePrivateDir, listFile, profileDir, projectIdFor, resolvePaths } from '../src/paths.js';
 import {
-  PROFILE_COLORS, RegistryError, addProfile, editProfile, ensureColor, findProfile, loadProfiles, removeProfile, updateProfile, validateName,
+  PROFILE_COLORS, RegistryError, addProfile, editProfile, ensureColor, findProfile, loadProfiles, removeProfile, slotDescription, updateProfile, validateName,
 } from '../src/registry.js';
 import { type Sandbox, sandbox } from './helpers.js';
 
@@ -171,6 +171,14 @@ describe('registry', () => {
     assert.equal(editProfile(sb.paths, 'sender', { description: 'writes in Teams' }).description, 'writes in Teams');
     assert.match(readFileSync(listFile(sb.paths, 'project'), 'utf8'), /description: writes messages/);
     assert.equal(editProfile(sb.paths, 'sender', { description: '' }).description, 'writes messages');
+  });
+
+  test('slotDescription reads the team slot only', () => {
+    writeProjectSlots({ sender: { description: 'writes messages' } });
+    assert.equal(slotDescription(sb.paths, 'SENDER'), 'writes messages');
+    assert.equal(slotDescription(sb.paths, 'nobody'), undefined);
+    addProfile(sb.paths, 'Solo', 'local', { description: 'admin' });
+    assert.equal(slotDescription(sb.paths, 'Solo'), undefined);
   });
 
   test('each new profile gets a color no other profile uses', () => {

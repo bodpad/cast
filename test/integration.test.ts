@@ -277,9 +277,16 @@ describe('cast MCP server', () => {
     assert.match(text(closed), /Closed/);
   });
 
+  test('cast_add requires a description', async () => {
+    const res = await client.callTool({ name: 'cast_add', arguments: { name: 'Nodesc', description: '  ' } });
+    assert.equal(res.isError, true);
+    assert.match(text(res), /description is required/);
+    assert.equal(findProfile(sb.paths, 'Nodesc'), undefined);
+  });
+
   test('cast_add returns at once; the profile waits until the login window is closed', async () => {
     const started = Date.now();
-    const opened = await client.callTool({ name: 'cast_add', arguments: { name: 'Ann' } });
+    const opened = await client.callTool({ name: 'cast_add', arguments: { name: 'Ann', description: 'reviewer' } });
     assert.match(text(opened), /login window for "Ann" is open/);
     assert.ok(Date.now() - started < 20_000);
     const dir = findProfile(sb.paths, 'Ann')!.dir;
@@ -307,6 +314,10 @@ describe('cast MCP server', () => {
     assert.equal(findProfile(sb.paths, 'Elon')!.description, 'vendor');
     const empty = await client.callTool({ name: 'cast_update', arguments: { name: 'Elon' } });
     assert.equal(empty.isError, true);
+    const cleared = await client.callTool({ name: 'cast_update', arguments: { name: 'Elon', description: ' ' } });
+    assert.equal(cleared.isError, true);
+    assert.match(text(cleared), /cannot be cleared/);
+    assert.equal(findProfile(sb.paths, 'Elon')!.description, 'vendor');
   });
 
   test('errors are reported as tool errors', async () => {

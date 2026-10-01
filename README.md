@@ -38,9 +38,9 @@ Profiles and logins are kept. What changed in each version: [CHANGELOG.md](CHANG
 
 ## Get started
 
-1. `/cast:add Sam sam@example.com "sends messages"` — the description says who this person is in your tests; Claude picks profiles by it. Skip it and cast suggests one after login from the page you landed on (e.g. `/vendor`).
+1. `/cast:add Sam sam@example.com "sends messages"` — the description says who this person is in your tests and is required: Claude picks profiles by it. Leave it out and Claude asks for it before the window opens.
 2. A Chrome window opens. Log in everywhere Sam needs (your app, SSO, email), choose **"Stay signed in"** on MFA, then **close the window** and tell Claude. You may leave Claude Code meanwhile: cast saves what you visited once the window is closed.
-3. cast saves the sites where you landed (e.g. `localhost:3000`; sign-in pages are left out). Change them any time with `/cast:edit Sam +site -site`. If you skipped the description, confirm the one Claude suggests.
+3. cast saves the sites where you landed (e.g. `localhost:3000`; sign-in pages are left out). Change them any time with `/cast:edit Sam +site -site`.
 
 Now every Claude Code session in this project knows Sam. Just ask:
 
@@ -52,7 +52,7 @@ Now every Claude Code session in this project knows Sam. Just ask:
 
 | Command | What it does |
 |---|---|
-| `/cast:add <name> [email] ["description"] [--scope …]` | Add a person and log in |
+| `/cast:add <name> [email] "description" [--scope …]` | Add a person and log in |
 | `/cast:login <name>` | Log in again, or add sites |
 | `/cast:edit <name> [email] ["description"] [+site -site]` | Change the email, description or sites, no new login |
 | `/cast:list` | Show profiles |
@@ -67,7 +67,7 @@ Names: latin letters, digits, `-`, `_`.
 - **Logins and tabs are kept** between sessions.
 - **Claude picks people by description.** It never guesses a role from a profile name. If no profile or several fit ("the vendor"), it asks you once and saves your answer. Change a description any time with `/cast:edit <name>`.
 - **Claude never logs in.** When a session expires, it asks you to run `/cast:login <name>`.
-- **cast reads the browser history of its own profiles, nothing else.** When a login window closes, cast reads that profile's Chrome history for the visits made while it was open: URLs and page titles only, no cookies or page content, and never your personal Chrome profile. It shows Claude the hosts and the last page on each site (without the query string) to save sites and suggest a description. Sites are saved as hosts; the description is saved only if you confirm it.
+- **cast reads the browser history of its own profiles, nothing else.** When a login window closes, cast reads that profile's Chrome history for the visits made while it was open: URLs and page titles only, no cookies or page content, and never your personal Chrome profile. It shows Claude the hosts and the last page on each site (without the query string) to save sites and, for a profile made before descriptions were required, to suggest one. Sites are saved as hosts; a description is saved only if you confirm it.
 - **Claude sees what the person sees, email included.** Prefer test accounts. cast never stores passwords or shows cookies. Details: [SECURITY.md](SECURITY.md).
 
 ## What cast runs

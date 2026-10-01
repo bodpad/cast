@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.10.0 — 2026-10-01
+
+### Changed
+- A description is required in `/cast:add`: Claude picks profiles by it. Leave it out and Claude asks for it before the login window opens; a team slot that already has one needs none. A description can be replaced with `/cast:edit` but not cleared. Profiles made earlier without one keep working, and Claude still suggests one after their next `/cast:login`.
+
 ## 0.9.0 — 2026-10-01
 
 ### Added
