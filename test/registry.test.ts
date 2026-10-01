@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { chmodSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, test } from 'node:test';
 import { applyColor, launchChrome, nameSessionWindows } from '../src/chrome.js';
@@ -44,8 +45,8 @@ describe('paths', () => {
 
   test('a snap browser keeps profiles in ~/snap/<snap>/common/cast', () => {
     const p = resolvePaths({ CAST_PROJECT_DIR: '/w/app' });
-    const home = p.snapDir.replace(/\/snap$/, '');
-    assert.equal(profileDir(p, 'user', 'Sam', 'snap:chromium'), join(home, 'snap', 'chromium', 'common', 'cast', 'user', 'sam'));
+    assert.equal(p.snapDir, join(homedir(), 'snap'));
+    assert.equal(profileDir(p, 'user', 'Sam', 'snap:chromium'), join(p.snapDir, 'chromium', 'common', 'cast', 'user', 'sam'));
     assert.equal(profileDir(p, 'local', 'Sam', 'brave'), join(p.dataDir, 'projects', p.projectId, 'sam'));
     assert.equal(resolvePaths({ CAST_DATA_DIR: '/d' }).snapDir, join('/d', 'snap'));
   });

@@ -5,6 +5,7 @@ import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { pickBrowser } from '../src/browsers.js';
 import { type CastPaths, resolvePaths } from '../src/paths.js';
 
 export interface Sandbox {
@@ -95,7 +96,10 @@ export function quitChrome(dir: string): void {
     process.kill(Number(readlinkSync(join(dir, 'SingletonLock')).split('-').pop()), 'SIGINT');
     return;
   }
-  const query = `Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*--user-data-dir=${dir}*' -and $_.CommandLine -notlike '*--type=*' } | ForEach-Object { $_.ProcessId }`;
+  // The browser process: started from the browser's executable on this folder, not a renderer (--type=…).
+  // Matching the command line alone would also find this PowerShell query.
+  const exe = pickBrowser().executable;
+  const query = `Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -eq '${exe}' -and $_.CommandLine -like '*--user-data-dir=${dir}*' -and $_.CommandLine -notlike '*--type=*' } | ForEach-Object { $_.ProcessId }`;
   const pid = spawnSync('powershell', ['-NoProfile', '-Command', query], { encoding: 'utf8' }).stdout.trim().split(/\s+/)[0];
   if (!pid) throw new Error(`no Chrome runs on ${dir}`);
   if (spawnSync('taskkill', ['/PID', pid]).status !== 0) spawnSync('taskkill', ['/F', '/T', '/PID', pid]);

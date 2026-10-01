@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, statSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, sep } from 'node:path';
 import { after, before, describe, test } from 'node:test';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
@@ -160,7 +160,7 @@ describe('gateway', () => {
     ]);
     // Action tools link the snapshot file; the link is absolute and inside cast's output dir.
     const link = /\[Snapshot\]\(([^)]+)\)/.exec(text(nav))?.[1];
-    assert.ok(link?.startsWith(outputDir(sb.paths, 'Sam') + '/'), text(nav));
+    assert.ok(link?.startsWith(outputDir(sb.paths, 'Sam') + sep), text(nav));
     assert.match(readFileSync(link!, 'utf8'), /Hello sam/);
 
     const [sam, elon] = await Promise.all([
