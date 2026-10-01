@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import { existsSync, readFileSync, readlinkSync, statSync } from 'node:fs';
+import { existsSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { after, before, describe, test } from 'node:test';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -12,7 +12,7 @@ import { isRunning, launchChrome } from '../src/chrome.js';
 import { type LoginWindow, openLoginWindow, readLogin, startLoginWindow } from '../src/login-window.js';
 import { outputDir } from '../src/paths.js';
 import { addProfile, findProfile, updateProfile } from '../src/registry.js';
-import { type Sandbox, type TestSite, sandbox, startSite, text } from './helpers.js';
+import { type Sandbox, type TestSite, quitChrome, sandbox, startSite, text } from './helpers.js';
 
 // CAST_TEST_HEADED=1 shows the windows (checks what headless cannot, e.g. navigator.webdriver).
 const headed = process.env.CAST_TEST_HEADED === '1';
@@ -91,7 +91,7 @@ describe('login window', () => {
     assert.deepEqual(result.sites, [new URL(site.url).host]);
     assert.deepEqual(result.signIn, [new URL(ssoHost()).host]);
     assert.deepEqual(result.landings, [{ host: new URL(site.url).host, url: `${site.url}/sam/home`, title: 'App' }]);
-    assert.equal(statSync(findProfile(sb.paths, 'Sam')!.dir).mode & 0o777, 0o700);
+    if (process.platform !== 'win32') assert.equal(statSync(findProfile(sb.paths, 'Sam')!.dir).mode & 0o777, 0o700);
   });
 
   test('the login window is not flagged as automated', async () => {
@@ -204,8 +204,7 @@ describe('gateway', () => {
 
   test('a window closed by the human is reopened on the next call', async () => {
     await gateway.call(gp('Elon'), 'browser_navigate', { url: site.url });
-    const pid = Number(readlinkSync(join(findProfile(sb.paths, 'Elon')!.dir, 'SingletonLock')).split('-').pop());
-    process.kill(pid, 'SIGINT');
+    quitChrome(findProfile(sb.paths, 'Elon')!.dir);
     for (let i = 0; i < 100 && gateway.isOpen('Elon'); i++) await new Promise(r => setTimeout(r, 100));
     assert.equal(gateway.isOpen('Elon'), false);
     await gateway.call(gp('Elon'), 'browser_navigate', { url: site.url });
@@ -292,7 +291,7 @@ describe('cast MCP server', () => {
     assert.match(text(busy), /login window for "Ann" is still open/);
 
     // The human closes the window.
-    process.kill(Number(readlinkSync(join(dir, 'SingletonLock')).split('-').pop()), 'SIGINT');
+    quitChrome(dir);
     await until(() => !isRunning(dir));
     const result = await client.callTool({ name: 'cast_login_result', arguments: { name: 'Ann' } });
     assert.match(text(result), /login window for "Ann" is closed/);

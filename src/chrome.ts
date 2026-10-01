@@ -1,4 +1,4 @@
-import { type ChildProcess, spawn } from 'node:child_process';
+import { type ChildProcess, spawn, spawnSync } from 'node:child_process';
 import { appendFileSync, closeSync, existsSync, mkdirSync, openSync, readFileSync, readdirSync, readlinkSync, rmSync, writeFileSync } from 'node:fs';
 import { hostname } from 'node:os';
 import { join } from 'node:path';
@@ -86,7 +86,7 @@ export async function launchChrome(dir: string, opts: LaunchOptions = {}): Promi
   // Chrome's own output, to explain a Chrome that exits right away.
   const log = join(dir, LOG_FILE);
   const out = openSync(log, 'w', 0o600);
-  const child = spawn(browser.executable, args, { stdio: ['ignore', out, out], detached: opts.detached });
+  const child = spawn(browser.executable, args, { stdio: ['ignore', out, out], detached: opts.detached, windowsHide: true });
   closeSync(out);
   if (opts.detached) child.unref();
   // macOS keeps Chrome running when its last window is closed; quit it then, as Linux does.
@@ -103,9 +103,8 @@ export async function launchChrome(dir: string, opts: LaunchOptions = {}): Promi
     exited,
     close: async () => {
       if (gone) return;
-      // SIGINT shuts Chrome down cleanly; SIGTERM drops cookies and history not flushed yet (up to ~30 s).
-      child.kill('SIGINT');
-      const killer = setTimeout(() => child.kill('SIGKILL'), 10_000);
+      if (!await requestStop(child, chrome.endpoint)) forceStop(child);
+      const killer = setTimeout(() => forceStop(child), 10_000);
       await exited;
       clearTimeout(killer);
     },
@@ -136,10 +135,37 @@ export async function launchChrome(dir: string, opts: LaunchOptions = {}): Promi
 
 const LOG_FILE = 'cast-chrome.log';
 
+/**
+ * Asks Chrome to quit the way closing its window does, so cookies and History are flushed (Chrome writes
+ * them every ~10-30 s). SIGINT does that on Linux and macOS; SIGTERM does not. Windows has no signals:
+ * Node's kill() terminates the process at once, so Chrome is asked over the DevTools port when it has one,
+ * else its windows get WM_CLOSE (taskkill without /F). False when the request could not be made.
+ */
+async function requestStop(child: ChildProcess, endpoint?: string): Promise<boolean> {
+  if (process.platform !== 'win32') return child.kill('SIGINT');
+  if (endpoint) {
+    try {
+      const { chromium } = await import('playwright-core');
+      const browser = await chromium.connectOverCDP(endpoint);
+      // The connection drops as Chrome quits.
+      await (await browser.newBrowserCDPSession()).send('Browser.close').catch(() => {});
+      return true;
+    } catch { /* ask the windows instead */ }
+  }
+  // Fails when Chrome has no window to close, e.g. headless.
+  return spawnSync('taskkill', ['/PID', String(child.pid)], { stdio: 'ignore', windowsHide: true }).status === 0;
+}
+
+/** Last resort: may lose cookies and History not written yet. */
+function forceStop(child: ChildProcess): void {
+  if (process.platform === 'win32') spawnSync('taskkill', ['/F', '/T', '/PID', String(child.pid)], { stdio: 'ignore', windowsHide: true });
+  else child.kill('SIGKILL');
+}
+
 /** Environment problems, each in one sentence with what to do. */
 function assertCanRun(headless: boolean): void {
-  if (process.platform !== 'linux' && process.platform !== 'darwin') {
-    throw new ChromeError(`cast works on Linux and macOS only for now (this is ${process.platform}).`);
+  if (process.platform !== 'linux' && process.platform !== 'darwin' && process.platform !== 'win32') {
+    throw new ChromeError(`cast works on Linux, macOS and Windows only (this is ${process.platform}).`);
   }
   if (process.platform === 'linux' && !headless && !process.env.DISPLAY && !process.env.WAYLAND_DISPLAY) {
     throw new ChromeError('No display to show Chrome on (DISPLAY and WAYLAND_DISPLAY are not set): start Claude Code from a terminal in your desktop session, not over plain SSH.');
@@ -244,8 +270,21 @@ function userTitleCommand(window: number, title: string): Buffer {
 type Section = { theme?: Record<string, unknown>; [key: string]: unknown };
 type Prefs = { browser?: Section; extensions?: Section; [key: string]: unknown };
 
-/** Whether a Chrome runs on this profile folder, by its SingletonLock ("<host>-<pid>"). */
+/**
+ * Whether a Chrome runs on this profile folder, by its SingletonLock ("<host>-<pid>"). On Windows Chrome
+ * holds a "lockfile" open instead, deleted when it exits, that nobody else may write while it runs.
+ */
 export function isRunning(dir: string): boolean {
+  if (process.platform === 'win32') {
+    const lock = join(dir, 'lockfile');
+    if (!existsSync(lock)) return false;
+    try {
+      closeSync(openSync(lock, 'r+'));
+      return false;
+    } catch (e) {
+      return ['EBUSY', 'EPERM', 'EACCES'].includes((e as NodeJS.ErrnoException).code ?? '');
+    }
+  }
   let target: string;
   try { target = readlinkSync(join(dir, 'SingletonLock')); } catch { return false; }
   const dash = target.lastIndexOf('-');

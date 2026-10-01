@@ -36,7 +36,7 @@ export async function startLoginWindow(dir, opts) {
     });
     try {
         if (opts.onReady)
-            await opts.onReady({ endpoint: chrome.endpoint, close: () => chrome.process.kill('SIGINT') });
+            await opts.onReady({ endpoint: chrome.endpoint, close: () => { chrome.close().catch(() => { }); } });
     }
     catch (e) {
         await chrome.close();

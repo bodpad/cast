@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { chmodSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, test } from 'node:test';
 import { applyColor, launchChrome, nameSessionWindows } from '../src/chrome.js';
 import { briefList, windowLook } from '../src/format.js';
@@ -25,15 +25,21 @@ describe('paths', () => {
   });
 
   test('project dir: CAST_PROJECT_DIR, then CLAUDE_PROJECT_DIR, then cwd', () => {
-    assert.equal(resolvePaths({ CAST_PROJECT_DIR: '/x', CLAUDE_PROJECT_DIR: '/y' }).projectDir, '/x');
-    assert.equal(resolvePaths({ CLAUDE_PROJECT_DIR: '/y' }).projectDir, '/y');
-    assert.equal(resolvePaths({ CAST_PROJECT_DIR: '${CLAUDE_PROJECT_DIR}', CLAUDE_PROJECT_DIR: '/y' }).projectDir, '/y');
+    assert.equal(resolvePaths({ CAST_PROJECT_DIR: '/x', CLAUDE_PROJECT_DIR: '/y' }).projectDir, resolve('/x'));
+    assert.equal(resolvePaths({ CLAUDE_PROJECT_DIR: '/y' }).projectDir, resolve('/y'));
+    assert.equal(resolvePaths({ CAST_PROJECT_DIR: '${CLAUDE_PROJECT_DIR}', CLAUDE_PROJECT_DIR: '/y' }).projectDir, resolve('/y'));
   });
 
-  test('XDG dirs are honoured', () => {
+  test('XDG dirs are honoured', { skip: process.platform === 'win32' && 'not on Windows' }, () => {
     const p = resolvePaths({ XDG_CONFIG_HOME: '/c', XDG_DATA_HOME: '/d' });
     assert.equal(p.configDir, '/c/cast');
     assert.equal(p.dataDir, '/d/cast');
+  });
+
+  test('Windows: settings in AppData\\Roaming, browser data in AppData\\Local', { skip: process.platform !== 'win32' && 'Windows only' }, () => {
+    const p = resolvePaths({ APPDATA: 'C:\\Users\\me\\AppData\\Roaming', LOCALAPPDATA: 'C:\\Users\\me\\AppData\\Local' });
+    assert.equal(p.configDir, 'C:\\Users\\me\\AppData\\Roaming\\cast');
+    assert.equal(p.dataDir, 'C:\\Users\\me\\AppData\\Local\\cast');
   });
 
   test('a snap browser keeps profiles in ~/snap/<snap>/common/cast', () => {
@@ -41,10 +47,10 @@ describe('paths', () => {
     const home = p.snapDir.replace(/\/snap$/, '');
     assert.equal(profileDir(p, 'user', 'Sam', 'snap:chromium'), join(home, 'snap', 'chromium', 'common', 'cast', 'user', 'sam'));
     assert.equal(profileDir(p, 'local', 'Sam', 'brave'), join(p.dataDir, 'projects', p.projectId, 'sam'));
-    assert.equal(resolvePaths({ CAST_DATA_DIR: '/d' }).snapDir, '/d/snap');
+    assert.equal(resolvePaths({ CAST_DATA_DIR: '/d' }).snapDir, join('/d', 'snap'));
   });
 
-  test('profile dirs are private (0700)', () => {
+  test('profile dirs are private (0700)', { skip: process.platform === 'win32' && 'no file modes on Windows' }, () => {
     const dir = join(sb.root, 'p');
     mkdirSync(dir, { mode: 0o755 });
     ensurePrivateDir(dir);
@@ -284,6 +290,9 @@ describe('macOS window watcher', () => {
 });
 
 describe('chrome start errors', () => {
+  /** The fake Chrome is a shell script; Windows runs .cmd files only through a shell. */
+  const noScripts = process.platform === 'win32' && 'no shell scripts on Windows';
+
   /** Runs `fn` with these environment variables (undefined unsets one), then restores them. */
   async function withEnv(vars: Record<string, string | undefined>, fn: () => Promise<unknown>) {
     const saved = Object.fromEntries(Object.keys(vars).map(k => [k, process.env[k]]));
@@ -310,10 +319,10 @@ describe('chrome start errors', () => {
   test('no display', { skip: process.platform !== 'linux' && 'Linux only' }, () => withEnv({ CAST_TEST_HEADLESS: undefined, DISPLAY: undefined, WAYLAND_DISPLAY: undefined }, () =>
     assert.rejects(launchChrome(dir()), /No display .*not over plain SSH/)));
 
-  test('display not reachable', () => withEnv({ CAST_TEST_HEADLESS: '1', CAST_CHROME: fakeChrome('[1:1:0930/1:ERROR:ozone_platform_x11.cc:257] Missing X server or $DISPLAY') }, () =>
+  test('display not reachable', { skip: noScripts }, () => withEnv({ CAST_TEST_HEADLESS: '1', CAST_CHROME: fakeChrome('[1:1:0930/1:ERROR:ozone_platform_x11.cc:257] Missing X server or $DISPLAY') }, () =>
     assert.rejects(launchChrome(dir()), /display is not reachable/)));
 
-  test('any other exit shows what Chrome said', async () => {
+  test('any other exit shows what Chrome said', { skip: noScripts }, async () => {
     await withEnv({ CAST_TEST_HEADLESS: '1', CAST_CHROME: fakeChrome('[1:1:0930/1:FATAL:x.cc:1] Something broke') }, async () => {
       await assert.rejects(launchChrome(dir()), /exited right after starting: Something broke\. Its output is in .*cast-chrome\.log/);
       await assert.rejects(launchChrome(dir(), { debugPort: true }), /exited right after starting: Something broke/);

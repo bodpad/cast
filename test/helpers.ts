@@ -1,5 +1,6 @@
+import { spawnSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, readlinkSync, rmSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
@@ -83,4 +84,19 @@ export async function startSite(): Promise<TestSite> {
 
 export function text(result: object): string {
   return (((result as { content?: unknown }).content ?? []) as { type: string; text?: string }[]).map(c => c.text ?? '').join('\n');
+}
+
+/**
+ * Quits the Chrome running on a profile folder the way closing its window does. On Windows a headless
+ * Chrome has no window to close, so it is then stopped by force (its History may be lost).
+ */
+export function quitChrome(dir: string): void {
+  if (process.platform !== 'win32') {
+    process.kill(Number(readlinkSync(join(dir, 'SingletonLock')).split('-').pop()), 'SIGINT');
+    return;
+  }
+  const query = `Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -like '*--user-data-dir=${dir}*' -and $_.CommandLine -notlike '*--type=*' } | ForEach-Object { $_.ProcessId }`;
+  const pid = spawnSync('powershell', ['-NoProfile', '-Command', query], { encoding: 'utf8' }).stdout.trim().split(/\s+/)[0];
+  if (!pid) throw new Error(`no Chrome runs on ${dir}`);
+  if (spawnSync('taskkill', ['/PID', pid]).status !== 0) spawnSync('taskkill', ['/F', '/T', '/PID', pid]);
 }
