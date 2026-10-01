@@ -44,7 +44,7 @@ Chrome and Playwright MCP quirks found the hard way (Linux, Chrome 151 and macOS
 - Flatpak browsers (see above).
 - A lock for one profile used by two Claude sessions (today Chrome refuses a busy folder and cast shows a hint).
 - Detecting logged-in or expired state per site, `/cast:check`, a clean profile for sign-up tests.
-- Optional headless, TOTP, recording, publishing to npm and the Anthropic directory.
+- Optional headless, TOTP, recording, publishing to npm; the Anthropic directory listing is in review.
 
 ## Develop
 

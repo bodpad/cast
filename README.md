@@ -40,9 +40,9 @@ Profiles and logins are kept. What changed in each version: [CHANGELOG.md](CHANG
 
 ## Get started
 
-1. `/cast:add Sam sam@example.com "sends messages"` — the description says who this person is in your tests and is required: Claude picks profiles by it. Leave it out and Claude asks for it before the window opens.
+1. `/cast:add Sam "sends messages" sam@example.com` — the description says who this person is in your tests and is required: Claude picks profiles by it. Leave it out and Claude asks for it before the window opens.
 2. A Chrome window opens. Log in everywhere Sam needs (your app, SSO, email), choose **"Stay signed in"** on MFA, then **close the window** and tell Claude. You may leave Claude Code meanwhile: cast saves what you visited once the window is closed.
-3. cast saves the sites where you landed (e.g. `localhost:3000`; sign-in pages are left out). Change them any time with `/cast:edit Sam +site -site`.
+3. cast saves the sites where you landed (e.g. `app.example.com`; sign-in pages are left out). Change them any time, e.g. `/cast:edit Sam +admin.example.com -old.example.com`.
 
 Now every Claude Code session in this project knows Sam. Just ask:
 
@@ -54,13 +54,15 @@ Now every Claude Code session in this project knows Sam. Just ask:
 
 | Command | What it does |
 |---|---|
-| `/cast:add <name> [email] "description" [--scope …]` | Add a person and log in |
+| `/cast:add <name> <description> [email] [--scope local\|project\|user]` | Add a person and log in |
 | `/cast:open <name>` | Open the person's browser for you: log in again, add sites, look around |
-| `/cast:edit <name> [email] ["description"] [+site -site]` | Change the email, description or sites, no new login |
+| `/cast:edit <name> [email] [description] [+site]... [-site]...` | Change the email, description or sites, no new login |
 | `/cast:list` | Show profiles |
 | `/cast:remove <name>` | Delete a profile and its logins |
 
-Names: latin letters, digits, `-`, `_`.
+`<name>` is a value you fill in, `[x]` is optional, `a|b` means one of them, `...` means it can repeat. Put a description with spaces in quotes: `/cast:add Sam "sends messages"`.
+
+Names: latin letters, digits, `-`, `_`, up to 40 characters, starting with a letter or digit.
 
 ## Good to know
 
@@ -69,7 +71,7 @@ Names: latin letters, digits, `-`, `_`.
 - **Logins and tabs are kept** between sessions.
 - **Claude picks people by description.** It never guesses a role from a profile name. If no profile or several fit ("the vendor"), it asks you once and saves your answer. Change a description any time with `/cast:edit <name>`.
 - **Claude never logs in.** When a session expires, it asks you to run `/cast:open <name>` and log in again there.
-- **cast reads the browser history of its own profiles, nothing else.** When you close a window from `/cast:add` or `/cast:open`, cast reads that profile's Chrome history for the visits made while it was open: URLs and page titles only, no cookies or page content, and never your personal Chrome profile. It shows Claude the hosts and the last page on each site (without the query string) to save sites and, for a profile made before descriptions were required, to suggest one. Sites are saved as hosts; a description is saved only if you confirm it.
+- **cast reads the browser history of its own profiles, nothing else.** When you close a window from `/cast:add` or `/cast:open`, cast reads the visits made in it to save the sites (as hosts). Never your personal Chrome profile, never cookies or page content. Details: [PRIVACY.md](PRIVACY.md).
 - **Claude sees what the person sees, email included.** Prefer test accounts. cast never stores passwords or shows cookies. Details: [SECURITY.md](SECURITY.md).
 
 ## What cast runs
@@ -80,7 +82,7 @@ Names: latin letters, digits, `-`, `_`.
 - **On macOS, a small watcher** per cast window (`osascript`, CoreGraphics window list) that quits that Chrome once its last window is closed.
 - **On Windows, `taskkill` without `/F`** to close a cast window the way its close button does, so cookies are saved.
 
-cast sends nothing anywhere by itself and has no telemetry. What Claude reads in a cast window (pages, snapshots, screenshots) goes to the model as part of your Claude session, like any other tool result. Details: [PRIVACY.md](PRIVACY.md), [SECURITY.md](SECURITY.md).
+What Claude reads in a cast window goes to the model as part of your Claude session: see [Privacy](#privacy) and [SECURITY.md](SECURITY.md).
 
 ## Scopes and teams
 
@@ -124,7 +126,7 @@ Team slots in a project's `.claude/claude-cast.yaml` stay in that repository; de
 
 ## Troubleshooting
 
-- **No window / no browser found:** cast looks for Google Chrome, Edge, Brave, Chromium and Vivaldi in their usual places and in `PATH` (macOS: `/Applications` or `~/Applications`; Windows: `Program Files` or `AppData\Local`); set `CAST_CHROME` to the browser's executable if it lives elsewhere. A Flatpak browser cannot be used: its sandbox hides the profile folder and the process; install the .deb or .rpm package instead. Snap browsers work. On Linux, start Claude Code from a desktop session (`DISPLAY` set), not plain SSH. When Chrome exits right after starting, cast shows its last message; the full output is in `cast-chrome.log` in the profile folder (`dir` in `cast_list`).
+- **No window / no browser found:** cast looks for Google Chrome, Edge, Brave, Chromium and Vivaldi in their usual places and in `PATH` (macOS: `/Applications` or `~/Applications`; Windows: `Program Files` or `AppData\Local`); set `CAST_CHROME` to the browser's executable if it lives elsewhere. A Flatpak browser cannot be used: its sandbox hides the profile folder and the process; install the .deb or .rpm package instead. Snap browsers work. On Linux, start Claude Code from a desktop session (`DISPLAY` set), not plain SSH. When Chrome exits right after starting, cast shows its last message; the full output is in `cast-chrome.log` in the profile folder: `~/.local/share/claude-cast/projects/<project>-<hash>/<name>/`, or `…/user/<name>/` for `--scope user` (Claude can tell you the exact path).
 - **"Profile is already open":** one profile, one Chrome. Close the other window (yours from `/cast:add` or `/cast:open`, or another Claude session).
 - **SSO blocks the login:** log in only in the `/cast:add` or `/cast:open` window; it is a plain Chrome nothing controls.
 - **Claude says your window is still open:** close it (titled `… · your window · cast`), then tell Claude. On macOS, closing a cast window quits that Chrome within a second; a minimized window counts as open.

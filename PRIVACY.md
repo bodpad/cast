@@ -4,7 +4,7 @@ cast is a Claude Code plugin that runs only on your computer. It has no server, 
 
 ## What cast stores, and where
 
-- **Profile lists** in `~/.config/claude-cast/` (Windows: `%APPDATA%\claude-cast\`; and `.claude/claude-cast.yaml` for team slots): a name, an optional email, a description and the sites you confirmed. Team slots in `.claude/claude-cast.yaml` hold only names and descriptions.
+- **Profile lists** in `~/.config/claude-cast/` (Windows: `%APPDATA%\claude-cast\`; and `.claude/claude-cast.yaml` for team slots): a name, an optional email, a description and the sites (hosts) read from the profile's history. Team slots in `.claude/claude-cast.yaml` hold only names and descriptions.
 - **Chrome profiles** in `~/.local/share/claude-cast/` (Windows: `%LOCALAPPDATA%\claude-cast\`; a snap browser's in `~/snap/<browser>/common/claude-cast/`), readable only by your user: everything Chrome keeps for a browser you log in to, such as cookies, history and open tabs. Chrome writes them, not cast.
 - **Playwright output** (page snapshots, screenshots) in the `output` folder next to them, for Claude to read.
 
