@@ -11,7 +11,7 @@ export interface CastPaths {
   projectId: string;
   configDir: string;
   dataDir: string;
-  /** Profiles of a snap browser live in <snapDir>/<snap>/common/cast: a snap cannot read hidden folders in home. */
+  /** Profiles of a snap browser live in <snapDir>/<snap>/common/claude-cast: a snap cannot read hidden folders in home. */
   snapDir: string;
 }
 
@@ -20,9 +20,9 @@ export function resolvePaths(env: NodeJS.ProcessEnv = process.env): CastPaths {
   // Windows: settings roam with the user (AppData\Roaming); browser data stays on this machine (AppData\Local).
   const windows = process.platform === 'win32';
   const configDir = env.CAST_CONFIG_DIR || join(
-    windows ? env.APPDATA || join(homedir(), 'AppData', 'Roaming') : env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'cast');
+    windows ? env.APPDATA || join(homedir(), 'AppData', 'Roaming') : env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'claude-cast');
   const dataDir = env.CAST_DATA_DIR || join(
-    windows ? env.LOCALAPPDATA || join(homedir(), 'AppData', 'Local') : env.XDG_DATA_HOME || join(homedir(), '.local', 'share'), 'cast');
+    windows ? env.LOCALAPPDATA || join(homedir(), 'AppData', 'Local') : env.XDG_DATA_HOME || join(homedir(), '.local', 'share'), 'claude-cast');
   const snapDir = env.CAST_DATA_DIR ? join(env.CAST_DATA_DIR, 'snap') : join(homedir(), 'snap');
   return { projectDir, projectId: projectIdFor(projectDir), configDir, dataDir, snapDir };
 }
@@ -38,7 +38,7 @@ export function listFile(paths: CastPaths, scope: Scope): string {
   switch (scope) {
     case 'user': return join(paths.configDir, 'profiles.yaml');
     case 'local': return join(paths.configDir, 'projects', `${paths.projectId}.yaml`);
-    case 'project': return join(paths.projectDir, '.claude', 'cast.yaml');
+    case 'project': return join(paths.projectDir, '.claude', 'claude-cast.yaml');
   }
 }
 
@@ -48,7 +48,7 @@ export function listFile(paths: CastPaths, scope: Scope): string {
  */
 export function profileDir(paths: CastPaths, scope: Scope, name: string, browser?: string): string {
   const key = name.toLowerCase();
-  const root = browser?.startsWith('snap:') ? join(paths.snapDir, browser.slice(5), 'common', 'cast') : paths.dataDir;
+  const root = browser?.startsWith('snap:') ? join(paths.snapDir, browser.slice(5), 'common', 'claude-cast') : paths.dataDir;
   return scope === 'user'
     ? join(root, 'user', key)
     : join(root, 'projects', paths.projectId, key);

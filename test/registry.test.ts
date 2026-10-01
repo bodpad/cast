@@ -33,20 +33,20 @@ describe('paths', () => {
 
   test('XDG dirs are honoured', { skip: process.platform === 'win32' && 'not on Windows' }, () => {
     const p = resolvePaths({ XDG_CONFIG_HOME: '/c', XDG_DATA_HOME: '/d' });
-    assert.equal(p.configDir, '/c/cast');
-    assert.equal(p.dataDir, '/d/cast');
+    assert.equal(p.configDir, '/c/claude-cast');
+    assert.equal(p.dataDir, '/d/claude-cast');
   });
 
   test('Windows: settings in AppData\\Roaming, browser data in AppData\\Local', { skip: process.platform !== 'win32' && 'Windows only' }, () => {
     const p = resolvePaths({ APPDATA: 'C:\\Users\\me\\AppData\\Roaming', LOCALAPPDATA: 'C:\\Users\\me\\AppData\\Local' });
-    assert.equal(p.configDir, 'C:\\Users\\me\\AppData\\Roaming\\cast');
-    assert.equal(p.dataDir, 'C:\\Users\\me\\AppData\\Local\\cast');
+    assert.equal(p.configDir, 'C:\\Users\\me\\AppData\\Roaming\\claude-cast');
+    assert.equal(p.dataDir, 'C:\\Users\\me\\AppData\\Local\\claude-cast');
   });
 
-  test('a snap browser keeps profiles in ~/snap/<snap>/common/cast', () => {
+  test('a snap browser keeps profiles in ~/snap/<snap>/common/claude-cast', () => {
     const p = resolvePaths({ CAST_PROJECT_DIR: '/w/app' });
     assert.equal(p.snapDir, join(homedir(), 'snap'));
-    assert.equal(profileDir(p, 'user', 'Sam', 'snap:chromium'), join(p.snapDir, 'chromium', 'common', 'cast', 'user', 'sam'));
+    assert.equal(profileDir(p, 'user', 'Sam', 'snap:chromium'), join(p.snapDir, 'chromium', 'common', 'claude-cast', 'user', 'sam'));
     assert.equal(profileDir(p, 'local', 'Sam', 'brave'), join(p.dataDir, 'projects', p.projectId, 'sam'));
     assert.equal(resolvePaths({ CAST_DATA_DIR: '/d' }).snapDir, join('/d', 'snap'));
   });
@@ -137,7 +137,7 @@ describe('registry', () => {
     assert.equal(findProfile(sb.paths, 'sender')!.ready, false, 'the team slot stays');
   });
 
-  test('new project slot writes .claude/cast.yaml', () => {
+  test('new project slot writes .claude/claude-cast.yaml', () => {
     addProfile(sb.paths, 'Admin', 'project', { email: 'a@b.c', description: 'admin user' });
     const committed = readFileSync(listFile(sb.paths, 'project'), 'utf8');
     assert.match(committed, /Admin/);

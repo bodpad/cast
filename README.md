@@ -1,6 +1,6 @@
-# cast
+# cast: Claude tests your app as every user at once
 
-**Several logged-in browser users for [Claude Code](https://claude.com/claude-code).**
+**A real, logged-in Chrome for each person in your test, SSO included. Sam sends a message, Elon receives it, [Claude Code](https://claude.com/claude-code) checks both screens.**
 
 ![cast demo: Claude drives two logged-in browsers and finds a bug](docs/demo.gif)
 
@@ -88,14 +88,14 @@ cast sends nothing anywhere by itself and has no telemetry. What Claude reads in
 |---|---|---|
 | `local` (default) | to you, in this project | most cases |
 | `user` | to you, in all projects | an account you use everywhere |
-| `project` | to the team, as a slot in `.claude/cast.yaml` | shared test scenarios |
+| `project` | to the team, as a slot in `.claude/claude-cast.yaml` | shared test scenarios |
 
-A project slot holds only a name and description, never logins. Commit `.claude/cast.yaml`; each teammate fills the slot with their own account via `/cast:add <name>`. If names clash, local wins over project, project over user.
+A project slot holds only a name and description, never logins. Commit `.claude/claude-cast.yaml`; each teammate fills the slot with their own account via `/cast:add <name>`. If names clash, local wins over project, project over user.
 
 ## Where data lives
 
-- Profile lists: `~/.config/cast/` (plain YAML, editable); on Windows `%APPDATA%\cast\`.
-- Chrome data with logins: `~/.local/share/cast/`, readable only by you; on Windows `%LOCALAPPDATA%\cast\`. A snap browser (Ubuntu's Chromium) cannot read hidden folders, so its profiles are in `~/snap/<browser>/common/cast/`.
+- Profile lists: `~/.config/claude-cast/` (plain YAML, editable); on Windows `%APPDATA%\claude-cast\`.
+- Chrome data with logins: `~/.local/share/claude-cast/`, readable only by you; on Windows `%LOCALAPPDATA%\claude-cast\`. A snap browser (Ubuntu's Chromium) cannot read hidden folders, so its profiles are in `~/snap/<browser>/common/claude-cast/`.
 
 ## Uninstall
 
@@ -111,16 +111,16 @@ From a terminal instead: `claude plugin uninstall cast@cosmotools`, then `claude
 Uninstalling keeps profiles and logins. To delete them too, close all cast windows and remove both folders:
 
 ```bash
-rm -rf ~/.config/cast ~/.local/share/cast ~/snap/*/common/cast
+rm -rf ~/.config/claude-cast ~/.local/share/claude-cast ~/snap/*/common/claude-cast
 ```
 
 On Windows, in PowerShell:
 
 ```powershell
-Remove-Item -Recurse -Force "$env:APPDATA\cast", "$env:LOCALAPPDATA\cast"
+Remove-Item -Recurse -Force "$env:APPDATA\claude-cast", "$env:LOCALAPPDATA\claude-cast"
 ```
 
-Team slots in a project's `.claude/cast.yaml` stay in that repository; delete the file there if nobody needs them.
+Team slots in a project's `.claude/claude-cast.yaml` stay in that repository; delete the file there if nobody needs them.
 
 ## Troubleshooting
 

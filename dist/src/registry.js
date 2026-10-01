@@ -67,7 +67,7 @@ export function findProfile(paths, name) {
 }
 /**
  * Registers a profile before its first login. For scope "project" the slot (name + description)
- * goes to the committed .claude/cast.yaml and the personal part to the developer's local list.
+ * goes to the committed .claude/claude-cast.yaml and the personal part to the developer's local list.
  */
 export function addProfile(paths, name, scope, input) {
     validateName(name);
@@ -136,19 +136,19 @@ export function editProfile(paths, name, fields) {
     });
     return findProfile(paths, name);
 }
-/** The description of a team slot in .claude/cast.yaml, if it has one. */
+/** The description of a team slot in .claude/claude-cast.yaml, if it has one. */
 export function slotDescription(paths, name) {
     const project = readProject(paths);
     const key = findKey(project.profiles, name);
     return key ? project.profiles[key].description || undefined : undefined;
 }
-/** Forgets this developer's login. A project slot itself stays in .claude/cast.yaml for the team. */
+/** Forgets this developer's login. A project slot itself stays in .claude/claude-cast.yaml for the team. */
 export function removeProfile(paths, name) {
     const p = findProfile(paths, name);
     if (!p)
         throw new RegistryError(`No profile named "${name}".`);
     if (!p.ready)
-        throw new RegistryError(`"${p.name}" is a project slot you have not logged in to; remove it from .claude/cast.yaml instead.`);
+        throw new RegistryError(`"${p.name}" is a project slot you have not logged in to; remove it from .claude/claude-cast.yaml instead.`);
     const scope = p.scope === 'user' ? 'user' : 'local';
     updatePersonal(paths, scope, f => { delete f.profiles[findKey(f.profiles, p.name)]; });
     return p;

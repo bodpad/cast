@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.12.0 — 2026-10-01
+
+### Changed
+- cast's folders are named `claude-cast`, not `cast`, so they cannot be mistaken for another tool's: `~/.config/claude-cast/`, `~/.local/share/claude-cast/`, `~/snap/<browser>/common/claude-cast/`; on Windows `%APPDATA%\claude-cast\` and `%LOCALAPPDATA%\claude-cast\`. Team slots move from `.claude/cast.yaml` to `.claude/claude-cast.yaml`. Existing profiles are not moved: close all cast windows and rename the old `cast` folders and `.claude/cast.yaml` to keep them.
+
 ## 0.11.0 — 2026-10-01
 
 ### Changed
