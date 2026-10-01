@@ -46,6 +46,7 @@ Now every Claude Code session in this project knows Sam. Just ask:
 
 - *"Check Sam's inbox for the invitation and open the link."*
 - *"Sam creates an order, Elon approves it; check that Sam sees the new status."*
+- *"Sam sends Elon a chat message; check that Elon gets it within a few seconds, without reloading."*
 
 ## Commands
 
@@ -68,6 +69,15 @@ Names: latin letters, digits, `-`, `_`.
 - **Claude never logs in.** When a session expires, it asks you to run `/cast:login <name>`.
 - **cast reads the browser history of its own profiles, nothing else.** When a login window closes, cast reads that profile's Chrome history for the visits made while it was open: URLs and page titles only, no cookies or page content, and never your personal Chrome profile. It shows Claude the hosts and the last page on each site (without the query string) to save sites and suggest a description. Sites are saved as hosts; the description is saved only if you confirm it.
 - **Claude sees what the person sees, email included.** Prefer test accounts. cast never stores passwords or shows cookies. Details: [SECURITY.md](SECURITY.md).
+
+## What cast runs
+
+- **Google Chrome**, the one installed on your computer, with a separate data folder per person. Claude's window has a DevTools port on 127.0.0.1; the login window has none.
+- **[Playwright MCP](https://github.com/microsoft/playwright-mcp)** (`@playwright/mcp`, pinned in `package-lock.json`), one per open profile, attached to that Chrome.
+- **A `SessionStart` hook** that prints the profile list so Claude knows the people.
+- **On macOS, a small watcher** per cast window (`osascript`, CoreGraphics window list) that quits that Chrome once its last window is closed.
+
+cast sends nothing anywhere by itself and has no telemetry. Details: [PRIVACY.md](PRIVACY.md), [SECURITY.md](SECURITY.md).
 
 ## Scopes and teams
 
@@ -114,6 +124,10 @@ Team slots in a project's `.claude/cast.yaml` stay in that repository; delete th
 ## Similar tools
 
 Plain [Playwright MCP](https://github.com/microsoft/playwright-mcp) runs one browser, which is enough for single-user browsing. Plugins that save auth state (`storageState`) switch roles in one browser and keep only cookies. cast keeps a full Chrome profile per person and several people logged in at once, lets you pass corporate SSO by logging in yourself, and tells Claude who is who.
+
+## Support
+
+Questions and ideas: [Discussions](https://github.com/bodpad/cast/discussions). Bugs: [Issues](https://github.com/bodpad/cast/issues). Security issues: privately, as [SECURITY.md](SECURITY.md) describes.
 
 ## Contributing
 
