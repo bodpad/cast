@@ -13,6 +13,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     defaults:
       run:
         # Git Bash on Windows: the same commands and globs on every system.
@@ -29,8 +30,16 @@ jobs:
         # Windows checks out CRLF line endings.
         if: matrix.os != 'windows-latest'
         run: git diff --exit-code -- dist/src || (echo "::error::Run npm run build and commit dist/src" && exit 1)
-      - name: Chrome
-        run: '"$(node -e "import(\"./dist/src/browsers.js\").then(m => console.log(m.pickBrowser().executable))")" --version'
+      - name: Browser
+        run: |
+          exe=$(node -e 'import("./dist/src/browsers.js").then(m => console.log(m.pickBrowser().executable))')
+          echo "$exe"
+          # On Windows chrome.exe --version opens a browser window instead of printing.
+          if [ "$RUNNER_OS" = Windows ]; then
+            powershell -NoProfile -Command "(Get-Item '$exe').VersionInfo.ProductVersion"
+          else
+            "$exe" --version
+          fi
       - run: node --test --test-concurrency=1 dist/test/*.test.js
       - name: One version everywhere, with a CHANGELOG.md entry
         if: matrix.os == 'ubuntu-latest'
