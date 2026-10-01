@@ -52,6 +52,18 @@ describe('browser discovery', () => {
     assert.deepEqual(findBrowsers(p).map(b => b.executable), [user, '/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge']);
   });
 
+  test('Windows: Program Files, then the per-user install; Edge when Chrome is missing', () => {
+    const env = { ProgramFiles: 'C:\\Program Files', 'ProgramFiles(x86)': 'C:\\Program Files (x86)', LOCALAPPDATA: 'C:\\Users\\me\\AppData\\Local' };
+    const userChrome = 'C:\\Users\\me\\AppData\\Local\\Google\\Chrome\\Application\\chrome.exe';
+    const edge = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
+    assert.deepEqual(findBrowsers(probe('win32', [userChrome, edge], { env })).map(b => b.executable), [userChrome, edge]);
+    assert.equal(pickBrowser({}, probe('win32', [edge], { env })).id, 'edge');
+    assert.match(
+      (() => { try { pickBrowser({}, probe('win32', ['C:\\Program Files\\Mozilla Firefox\\firefox.exe'], { env })); } catch (e) { return (e as Error).message; } })()!,
+      /Firefox is not supported.*Install Google Chrome from https:\/\/www\.google\.com\/chrome\/,/,
+    );
+  });
+
   test('CAST_CHROME wins, and a snap there is recognized', () => {
     const p = probe('linux', ['/opt/google/chrome/chrome', '/opt/x/chrome'], { env: { CAST_CHROME: '/opt/x/chrome' } });
     assert.deepEqual(pickBrowser({ pinned: 'chrome' }, p), { id: 'custom', name: 'the browser in CAST_CHROME', executable: '/opt/x/chrome' });

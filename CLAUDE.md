@@ -13,7 +13,7 @@ Core ideas:
 - **Claude knows who is who:** a `SessionStart` hook lists profiles (name, email, role, sites) in every session.
 - Scopes like Claude's own: `local` (this project), `project` (team slot in `.claude/cast.yaml`, no credentials), `user` (all projects).
 
-Status: Linux and macOS. Installed as `/plugin marketplace add bodpad/cast`, `/plugin install cast@bodpad`. Planned work is under "Not done yet" in `CONTRIBUTING.md`.
+Status: Linux, macOS and Windows (Windows tested in CI only). Installed as `/plugin marketplace add bodpad/cast`, `/plugin install cast@bodpad`. Planned work is under "Not done yet" in `CONTRIBUTING.md`.
 
 @CONTRIBUTING.md
 
@@ -36,7 +36,7 @@ Status: Linux and macOS. Installed as `/plugin marketplace add bodpad/cast`, `/p
 The reasons are in "Why it is built this way" in `CONTRIBUTING.md`.
 
 - The login window (`/cast:add`, `/cast:login`) must have no DevTools port: a port makes SSO bot checks refuse the login.
-- Stop Chrome with `SIGINT`, never `SIGTERM`: `SIGTERM` loses cookies and history not flushed yet.
+- Stop Chrome through `Chrome.close()` (`SIGINT`; on Windows CDP `Browser.close` or `taskkill` without `/F`), never `SIGTERM` or a forced kill: they lose cookies and history not flushed yet.
 - Closing a profile: stop Chrome first, then disconnect Playwright, or the saved session loses its tabs.
 - After Playwright attaches, wait for the tab list to settle before selecting a tab (session restore races).
 - Keep `--password-store=basic` on every Chrome cast starts, so all windows read the same cookies.
