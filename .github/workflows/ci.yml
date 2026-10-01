@@ -6,7 +6,8 @@ on:
     branches: [main]
 
 jobs:
-  test:
+  os:
+    name: test (${{ matrix.os }})
     strategy:
       fail-fast: false
       matrix:
@@ -28,3 +29,11 @@ jobs:
       - name: Plugin manifests
         if: matrix.os == 'ubuntu-latest'
         run: npx -y @anthropic-ai/claude-code plugin validate --strict .
+
+  # The required check on main is "test": one result for all systems.
+  test:
+    needs: os
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - run: test "${{ needs.os.result }}" = success
