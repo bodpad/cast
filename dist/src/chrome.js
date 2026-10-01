@@ -83,7 +83,8 @@ export async function launchChrome(dir, opts = {}) {
     if (spawnError)
         throw notInstalled(browser);
     if (opts.debugPort) {
-        for (let i = 0; i < 200 && !gone; i++) {
+        const deadline = Date.now() + START_TIMEOUT_MS;
+        while (!gone && Date.now() < deadline) {
             // "<port>\n<browser path>": wait for both lines, so a half-written file is not read.
             const [port, path] = readPortFile(portFile).split('\n');
             if (port && path) {
@@ -92,8 +93,10 @@ export async function launchChrome(dir, opts = {}) {
             }
             await new Promise(r => setTimeout(r, 100));
         }
+        // Whether Chrome exited by itself, before close() stops it.
+        const exitedEarly = gone;
         await chrome.close();
-        throw spawnError ? notInstalled(browser) : startFailure(log, gone, browser);
+        throw spawnError ? notInstalled(browser) : startFailure(log, exitedEarly, browser);
     }
     // Until the lock exists, isRunning() would report a user window that is still starting as closed.
     for (let i = 0; i < 100 && !gone && !isRunning(dir); i++)
@@ -103,6 +106,8 @@ export async function launchChrome(dir, opts = {}) {
     return chrome;
 }
 const LOG_FILE = 'cast-chrome.log';
+/** The first start on a new profile can take over 20 s on a cold machine (seen on Windows CI runners). */
+const START_TIMEOUT_MS = 60_000;
 /** "" until Chrome has written the file; on Windows Chrome keeps it locked while writing (EBUSY). */
 function readPortFile(file) {
     try {
@@ -153,7 +158,7 @@ function assertCanRun(headless) {
 /** Why Chrome did not come up, from the last lines it printed. */
 function startFailure(log, exited, browser) {
     if (!exited)
-        return new ChromeError(`${browser.name} did not start within 20 seconds. Its output is in ${log}.`);
+        return new ChromeError(`${browser.name} did not start within ${START_TIMEOUT_MS / 1000} seconds. Its output is in ${log}.`);
     let text = '';
     try {
         text = readFileSync(log, 'utf8');
