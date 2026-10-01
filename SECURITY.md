@@ -15,7 +15,7 @@ cast keeps real, logged-in browser sessions on your machine and lets Claude use 
 - **While Claude works in a profile, its Chrome listens on a DevTools port on 127.0.0.1.** Any program running under your user can connect to that port and control the browser for as long as the window is open. The login window has no such port.
 - **Anyone with access to your user account can use the sessions.** On Linux Chrome is started with `--password-store=basic`, so cookies are not protected by the system keyring; on macOS and Windows they are encrypted for your user account only. Treat cast's data folder (`~/.local/share/cast`, `%LOCALAPPDATA%\cast` on Windows) like a set of logged-in browsers.
 - **Claude can act as that person.** Within a profile Claude can do whatever the person can do on those sites. Review what you ask for, and watch the visible windows.
-- Playwright MCP exposes `browser_run_code_unsafe`, which runs arbitrary Playwright code in the page and could read cookies. The `cast` skill tells Claude not to print cookies or storage, but this is an instruction, not a technical barrier.
+- cast gives Claude all of Playwright MCP's tools on purpose: the user hands Claude their own browser instead of clicking themselves. That includes `browser_run_code_unsafe`, which runs arbitrary Playwright code in the page and could read cookies. The `cast` skill tells Claude not to print cookies or storage, but this is an instruction, not a technical barrier.
 
 ## Reporting a vulnerability
 

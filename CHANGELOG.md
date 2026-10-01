@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.10.1 — 2026-10-01
+
+### Added
+- cast tools carry MCP annotations (a title and whether a tool only reads, or changes or deletes something), so Claude Code can tell them apart when asking for permission.
+- The plugin has a display name, and the README says where cast works (Claude Code on your computer, not claude.ai chat).
+
 ## 0.10.0 — 2026-10-01
 
 ### Changed

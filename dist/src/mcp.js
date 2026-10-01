@@ -16,11 +16,13 @@ const CAST_TOOLS = [
     {
         name: 'cast_list',
         description: 'List cast browser profiles (one per person): name, scope, email, description, known sites, whether it is set up on this machine (ready), currently open, and the Chrome profile folder (dir). Never start Chrome on that folder by hand: use /cast:login, which launches it with the right flags.',
+        annotations: { title: 'List profiles', readOnlyHint: true, openWorldHint: false },
         inputSchema: { type: 'object', properties: {} },
     },
     {
         name: 'cast_open',
         description: 'Open the visible Chrome of a profile, optionally navigating to a URL. browser_* tools also open the profile automatically.',
+        annotations: { title: 'Open a profile', readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
         inputSchema: {
             type: 'object',
             properties: { profile: PROFILE_PARAM, url: { type: 'string', description: 'URL to open' } },
@@ -30,11 +32,13 @@ const CAST_TOOLS = [
     {
         name: 'cast_close',
         description: 'Close the Chrome of a profile. Logins are kept in the profile. Close profiles when the task is done.',
+        annotations: { title: 'Close a profile', readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
         inputSchema: { type: 'object', properties: { profile: PROFILE_PARAM }, required: ['profile'] },
     },
     {
         name: 'cast_add',
         description: `Create a profile and open a clean Chrome for the human to log in. Returns at once; when the user says they are done, call cast_login_result. ${HUMAN_ONLY}`,
+        annotations: { title: 'Add a profile and open a login window', readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
         inputSchema: {
             type: 'object',
             properties: {
@@ -49,16 +53,19 @@ const CAST_TOOLS = [
     {
         name: 'cast_login',
         description: `Reopen an existing profile for the human to log in again or add sites. Returns at once; when the user says they are done, call cast_login_result. ${HUMAN_ONLY}`,
+        annotations: { title: 'Open a login window', readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
         inputSchema: { type: 'object', properties: { name: PROFILE_PARAM }, required: ['name'] },
     },
     {
         name: 'cast_login_result',
         description: 'After /cast:add or /cast:login: whether the login window is closed yet and, if so, the sites saved from it and the last page the user saw on each.',
+        annotations: { title: 'Get the login result', readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
         inputSchema: { type: 'object', properties: { name: PROFILE_PARAM }, required: ['name'] },
     },
     {
         name: 'cast_set_sites',
         description: 'Replace the list of sites (hosts, e.g. "localhost:3000", "outlook.office.com") remembered for a profile.',
+        annotations: { title: 'Set profile sites', readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
         inputSchema: {
             type: 'object',
             properties: { name: PROFILE_PARAM, sites: { type: 'array', items: { type: 'string' } } },
@@ -68,6 +75,7 @@ const CAST_TOOLS = [
     {
         name: 'cast_update',
         description: 'Change the email or description of a profile without logging in again. The description says who this person is in tests (e.g. "vendor, Acme org"); Claude picks profiles by it. Save only what the user stated or confirmed, never a guess. An empty email clears it; a description cannot be cleared, only replaced (an empty one on a project profile goes back to the team slot\'s).',
+        annotations: { title: 'Edit a profile', readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
         inputSchema: {
             type: 'object',
             properties: { name: PROFILE_PARAM, email: { type: 'string' }, description: { type: 'string' } },
@@ -77,6 +85,7 @@ const CAST_TOOLS = [
     {
         name: 'cast_remove',
         description: 'Delete a profile and its Chrome data (logins). Only when the user asked (/cast:remove).',
+        annotations: { title: 'Remove a profile', readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
         inputSchema: { type: 'object', properties: { name: PROFILE_PARAM }, required: ['name'] },
     },
 ];

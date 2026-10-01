@@ -22,6 +22,8 @@ Start Claude Code (`claude`) and type these at its prompt. They are Claude Code 
 
 From a terminal instead: `claude plugin marketplace add cosmotools/claude-cast`, then `claude plugin install cast@cosmotools`, then start `claude`.
 
+cast works in Claude Code on your computer: it starts browsers there. It does nothing in claude.ai chat, which cannot reach your computer.
+
 ## Update
 
 In a Claude Code session, fetch the latest marketplace listing, update the plugin and reload it:
@@ -78,7 +80,7 @@ Names: latin letters, digits, `-`, `_`.
 - **On macOS, a small watcher** per cast window (`osascript`, CoreGraphics window list) that quits that Chrome once its last window is closed.
 - **On Windows, `taskkill` without `/F`** to close a cast window the way its close button does, so cookies are saved.
 
-cast sends nothing anywhere by itself and has no telemetry. Details: [PRIVACY.md](PRIVACY.md), [SECURITY.md](SECURITY.md).
+cast sends nothing anywhere by itself and has no telemetry. What Claude reads in a cast window (pages, snapshots, screenshots) goes to the model as part of your Claude session, like any other tool result. Details: [PRIVACY.md](PRIVACY.md), [SECURITY.md](SECURITY.md).
 
 ## Scopes and teams
 
