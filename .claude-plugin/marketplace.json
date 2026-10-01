@@ -1,6 +1,6 @@
 {
-  "name": "bodpad",
-  "owner": { "name": "bodpad" },
+  "name": "cosmotools",
+  "owner": { "name": "cosmotools" },
   "description": "Plugins for testing multi-user web apps with Claude Code.",
   "plugins": [
     {

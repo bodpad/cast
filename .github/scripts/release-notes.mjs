@@ -12,4 +12,4 @@ if (start < 0) {
 let end = lines.findIndex((line, i) => i > start && line.startsWith("## "));
 if (end < 0) end = lines.length;
 const notes = lines.slice(start + 1, end).join("\n").trim();
-console.log(`${notes}\n\nUpdate: \`/plugin marketplace update bodpad\`, \`/plugin update cast@bodpad\`, \`/reload-plugins\`.`);
+console.log(`${notes}\n\nUpdate: \`/plugin marketplace update cosmotools\`, \`/plugin update cast@cosmotools\`, \`/reload-plugins\`.`);

@@ -49,7 +49,7 @@ Chrome and Playwright MCP quirks found the hard way (Linux, Chrome 151 and macOS
 ## Develop
 
 ```bash
-git clone https://github.com/bodpad/cast && cd cast
+git clone https://github.com/cosmotools/claude-cast && cd claude-cast
 npm install
 npm test                          # build + unit + integration tests (real Chrome, headless)
 CAST_TEST_HEADED=1 npm test       # the same with visible windows
