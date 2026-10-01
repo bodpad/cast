@@ -1,6 +1,6 @@
 ---
 description: Open a person's browser profile for the user, without Claude's control, to log in again (expired session), add sites or work by hand
-argument-hint: <profile name>
+argument-hint: <name>
 disable-model-invocation: true
 allowed-tools: mcp__plugin_cast_cast__cast_open_for_user, mcp__plugin_cast_cast__cast_user_window_result, mcp__plugin_cast_cast__cast_set_sites, mcp__plugin_cast_cast__cast_list, mcp__plugin_cast_cast__cast_update
 ---

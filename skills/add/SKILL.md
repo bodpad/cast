@@ -1,6 +1,6 @@
 ---
 description: Create a browser profile for a person and log in to their accounts in a fresh Chrome window
-argument-hint: <name: latin letters, digits, - _> [email] "description" [--scope local|project|user]
+argument-hint: <name: latin letters, digits, - _> [email] <description> [--scope local|project|user]
 disable-model-invocation: true
 allowed-tools: mcp__plugin_cast_cast__cast_add, mcp__plugin_cast_cast__cast_user_window_result, mcp__plugin_cast_cast__cast_set_sites, mcp__plugin_cast_cast__cast_list
 ---

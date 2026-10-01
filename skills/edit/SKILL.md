@@ -1,6 +1,6 @@
 ---
 description: Change the email, description (who this person is in tests) or sites of a cast browser profile
-argument-hint: <name> [email] ["description"] [+site -site]
+argument-hint: <name> [email] [description] [+site]... [-site]...
 disable-model-invocation: true
 allowed-tools: mcp__plugin_cast_cast__cast_update, mcp__plugin_cast_cast__cast_set_sites, mcp__plugin_cast_cast__cast_list
 ---

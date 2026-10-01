@@ -42,7 +42,7 @@ Profiles and logins are kept. What changed in each version: [CHANGELOG.md](CHANG
 
 1. `/cast:add Sam sam@example.com "sends messages"` — the description says who this person is in your tests and is required: Claude picks profiles by it. Leave it out and Claude asks for it before the window opens.
 2. A Chrome window opens. Log in everywhere Sam needs (your app, SSO, email), choose **"Stay signed in"** on MFA, then **close the window** and tell Claude. You may leave Claude Code meanwhile: cast saves what you visited once the window is closed.
-3. cast saves the sites where you landed (e.g. `localhost:3000`; sign-in pages are left out). Change them any time with `/cast:edit Sam +site -site`.
+3. cast saves the sites where you landed (e.g. `localhost:3000`; sign-in pages are left out). Change them any time, e.g. `/cast:edit Sam +staging.example.com -localhost:3000`.
 
 Now every Claude Code session in this project knows Sam. Just ask:
 
@@ -54,13 +54,15 @@ Now every Claude Code session in this project knows Sam. Just ask:
 
 | Command | What it does |
 |---|---|
-| `/cast:add <name> [email] "description" [--scope …]` | Add a person and log in |
+| `/cast:add <name> [email] <description> [--scope local\|project\|user]` | Add a person and log in |
 | `/cast:open <name>` | Open the person's browser for you: log in again, add sites, look around |
-| `/cast:edit <name> [email] ["description"] [+site -site]` | Change the email, description or sites, no new login |
+| `/cast:edit <name> [email] [description] [+site]... [-site]...` | Change the email, description or sites, no new login |
 | `/cast:list` | Show profiles |
 | `/cast:remove <name>` | Delete a profile and its logins |
 
-Names: latin letters, digits, `-`, `_`.
+`<name>` is a value you fill in, `[x]` is optional, `a|b` means one of them, `...` means it can repeat. Put a description with spaces in quotes: `/cast:add Sam "sends messages"`.
+
+Names: latin letters, digits, `-`, `_`, up to 40 characters, starting with a letter or digit.
 
 ## Good to know
 
@@ -69,7 +71,7 @@ Names: latin letters, digits, `-`, `_`.
 - **Logins and tabs are kept** between sessions.
 - **Claude picks people by description.** It never guesses a role from a profile name. If no profile or several fit ("the vendor"), it asks you once and saves your answer. Change a description any time with `/cast:edit <name>`.
 - **Claude never logs in.** When a session expires, it asks you to run `/cast:open <name>` and log in again there.
-- **cast reads the browser history of its own profiles, nothing else.** When you close a window from `/cast:add` or `/cast:open`, cast reads that profile's Chrome history for the visits made while it was open: URLs and page titles only, no cookies or page content, and never your personal Chrome profile. It shows Claude the hosts and the last page on each site (without the query string) to save sites and, for a profile made before descriptions were required, to suggest one. Sites are saved as hosts; a description is saved only if you confirm it.
+- **cast reads the browser history of its own profiles, nothing else.** When you close a window from `/cast:add` or `/cast:open`, cast reads the visits made in it to save the sites (as hosts). Never your personal Chrome profile, never cookies or page content. Details: [PRIVACY.md](PRIVACY.md).
 - **Claude sees what the person sees, email included.** Prefer test accounts. cast never stores passwords or shows cookies. Details: [SECURITY.md](SECURITY.md).
 
 ## What cast runs
@@ -94,8 +96,8 @@ A project slot holds only a name and description, never logins. Commit `.claude/
 
 ## Where data lives
 
-- Profile lists: `~/.config/claude-cast/` (plain YAML, editable); on Windows `%APPDATA%\claude-cast\`.
-- Chrome data with logins: `~/.local/share/claude-cast/`, readable only by you; on Windows `%LOCALAPPDATA%\claude-cast\`. A snap browser (Ubuntu's Chromium) cannot read hidden folders, so its profiles are in `~/snap/<browser>/common/claude-cast/`.
+- Profile lists: `~/.config/claude-cast/` (plain YAML, editable; `$XDG_CONFIG_HOME` if set); on Windows `%APPDATA%\claude-cast\`.
+- Chrome data with logins: `~/.local/share/claude-cast/` (`$XDG_DATA_HOME` if set), readable only by you; on Windows `%LOCALAPPDATA%\claude-cast\`. A snap browser (Ubuntu's Chromium) cannot read hidden folders, so its profiles are in `~/snap/<browser>/common/claude-cast/`.
 
 ## Uninstall
 
