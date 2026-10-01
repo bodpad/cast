@@ -19,4 +19,4 @@ cast keeps real, logged-in browser sessions on your machine and lets Claude use 
 
 ## Reporting a vulnerability
 
-Please do not open a public issue. Use [GitHub private vulnerability reporting](https://github.com/bodpad/cast/security/advisories/new) for this repository (Security tab → Report a vulnerability).
+Please do not open a public issue. Use [GitHub private vulnerability reporting](https://github.com/cosmotools/claude-cast/security/advisories/new) for this repository (Security tab → Report a vulnerability).

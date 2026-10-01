@@ -25,4 +25,4 @@ cast itself makes no network requests. Chrome loads the sites you and Claude ope
 
 ## Contact
 
-Questions: [GitHub Discussions](https://github.com/bodpad/cast/discussions). Security issues: see [SECURITY.md](SECURITY.md).
+Questions: [GitHub Discussions](https://github.com/cosmotools/claude-cast/discussions). Security issues: see [SECURITY.md](SECURITY.md).

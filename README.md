@@ -15,24 +15,24 @@ Needs Linux with a desktop, macOS or Windows, Node.js 20+ and Google Chrome or a
 Start Claude Code (`claude`) and type these at its prompt. They are Claude Code commands, not shell commands:
 
 ```
-/plugin marketplace add bodpad/cast
-/plugin install cast@bodpad
+/plugin marketplace add cosmotools/claude-cast
+/plugin install cast@cosmotools
 /reload-plugins
 ```
 
-From a terminal instead: `claude plugin marketplace add bodpad/cast`, then `claude plugin install cast@bodpad`, then start `claude`.
+From a terminal instead: `claude plugin marketplace add cosmotools/claude-cast`, then `claude plugin install cast@cosmotools`, then start `claude`.
 
 ## Update
 
 In a Claude Code session, fetch the latest marketplace listing, update the plugin and reload it:
 
 ```
-/plugin marketplace update bodpad
-/plugin update cast@bodpad
+/plugin marketplace update cosmotools
+/plugin update cast@cosmotools
 /reload-plugins
 ```
 
-From a terminal instead: `claude plugin marketplace update bodpad`, then `claude plugin update cast@bodpad`, then restart `claude`.
+From a terminal instead: `claude plugin marketplace update cosmotools`, then `claude plugin update cast@cosmotools`, then restart `claude`.
 
 Profiles and logins are kept. What changed in each version: [CHANGELOG.md](CHANGELOG.md).
 
@@ -100,11 +100,11 @@ A project slot holds only a name and description, never logins. Commit `.claude/
 In a Claude Code session:
 
 ```
-/plugin uninstall cast@bodpad
-/plugin marketplace remove bodpad
+/plugin uninstall cast@cosmotools
+/plugin marketplace remove cosmotools
 ```
 
-From a terminal instead: `claude plugin uninstall cast@bodpad`, then `claude plugin marketplace remove bodpad`.
+From a terminal instead: `claude plugin uninstall cast@cosmotools`, then `claude plugin marketplace remove cosmotools`.
 
 Uninstalling keeps profiles and logins. To delete them too, close all cast windows and remove both folders:
 
@@ -134,7 +134,7 @@ Plain [Playwright MCP](https://github.com/microsoft/playwright-mcp) runs one bro
 
 ## Support
 
-Questions and ideas: [Discussions](https://github.com/bodpad/cast/discussions). Bugs: [Issues](https://github.com/bodpad/cast/issues). Security issues: privately, as [SECURITY.md](SECURITY.md) describes.
+Questions and ideas: [Discussions](https://github.com/cosmotools/claude-cast/discussions). Bugs: [Issues](https://github.com/cosmotools/claude-cast/issues). Security issues: privately, as [SECURITY.md](SECURITY.md) describes.
 
 ## Contributing
 

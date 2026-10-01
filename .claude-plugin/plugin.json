@@ -2,9 +2,9 @@
   "name": "cast",
   "version": "0.9.0",
   "description": "Several logged-in browser users for Claude: one persistent Chrome profile per person (Sam writes, Elon receives).",
-  "author": { "name": "bodpad" },
-  "homepage": "https://github.com/bodpad/cast",
-  "repository": "https://github.com/bodpad/cast",
+  "author": { "name": "cosmotools" },
+  "homepage": "https://github.com/cosmotools/claude-cast",
+  "repository": "https://github.com/cosmotools/claude-cast",
   "license": "MIT",
   "keywords": ["browser", "playwright", "testing", "multi-user", "chrome"]
 }
