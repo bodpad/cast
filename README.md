@@ -55,7 +55,7 @@ Now every Claude Code session in this project knows Sam. Just ask:
 | Command | What it does |
 |---|---|
 | `/cast:add <name> [email] "description" [--scope …]` | Add a person and log in |
-| `/cast:login <name>` | Log in again, or add sites |
+| `/cast:open <name>` | Open the person's browser for you: log in again, add sites, look around |
 | `/cast:edit <name> [email] ["description"] [+site -site]` | Change the email, description or sites, no new login |
 | `/cast:list` | Show profiles |
 | `/cast:remove <name>` | Delete a profile and its logins |
@@ -68,13 +68,13 @@ Names: latin letters, digits, `-`, `_`.
 - **Each person's window has its own color** and their name as the window title (`Sam (sends messages) · cast`; on Linux in the title bar), so two windows side by side are easy to tell apart. cast sets the theme color each time it opens the window.
 - **Logins and tabs are kept** between sessions.
 - **Claude picks people by description.** It never guesses a role from a profile name. If no profile or several fit ("the vendor"), it asks you once and saves your answer. Change a description any time with `/cast:edit <name>`.
-- **Claude never logs in.** When a session expires, it asks you to run `/cast:login <name>`.
-- **cast reads the browser history of its own profiles, nothing else.** When a login window closes, cast reads that profile's Chrome history for the visits made while it was open: URLs and page titles only, no cookies or page content, and never your personal Chrome profile. It shows Claude the hosts and the last page on each site (without the query string) to save sites and, for a profile made before descriptions were required, to suggest one. Sites are saved as hosts; a description is saved only if you confirm it.
+- **Claude never logs in.** When a session expires, it asks you to run `/cast:open <name>` and log in again there.
+- **cast reads the browser history of its own profiles, nothing else.** When you close a window from `/cast:add` or `/cast:open`, cast reads that profile's Chrome history for the visits made while it was open: URLs and page titles only, no cookies or page content, and never your personal Chrome profile. It shows Claude the hosts and the last page on each site (without the query string) to save sites and, for a profile made before descriptions were required, to suggest one. Sites are saved as hosts; a description is saved only if you confirm it.
 - **Claude sees what the person sees, email included.** Prefer test accounts. cast never stores passwords or shows cookies. Details: [SECURITY.md](SECURITY.md).
 
 ## What cast runs
 
-- **Google Chrome** (or Edge, Brave, Chromium, Vivaldi), the one installed on your computer, with a separate data folder per person. Each profile keeps the browser it was made with. Claude's window has a DevTools port on 127.0.0.1; the login window has none.
+- **Google Chrome** (or Edge, Brave, Chromium, Vivaldi), the one installed on your computer, with a separate data folder per person. Each profile keeps the browser it was made with. Claude's window has a DevTools port on 127.0.0.1; the window cast opens for you has none.
 - **[Playwright MCP](https://github.com/microsoft/playwright-mcp)** (`@playwright/mcp`, pinned in `package-lock.json`), one per open profile, attached to that Chrome.
 - **A `SessionStart` hook** that prints the profile list so Claude knows the people.
 - **On macOS, a small watcher** per cast window (`osascript`, CoreGraphics window list) that quits that Chrome once its last window is closed.
@@ -125,9 +125,9 @@ Team slots in a project's `.claude/cast.yaml` stay in that repository; delete th
 ## Troubleshooting
 
 - **No window / no browser found:** cast looks for Google Chrome, Edge, Brave, Chromium and Vivaldi in their usual places and in `PATH` (macOS: `/Applications` or `~/Applications`; Windows: `Program Files` or `AppData\Local`); set `CAST_CHROME` to the browser's executable if it lives elsewhere. A Flatpak browser cannot be used: its sandbox hides the profile folder and the process; install the .deb or .rpm package instead. Snap browsers work. On Linux, start Claude Code from a desktop session (`DISPLAY` set), not plain SSH. When Chrome exits right after starting, cast shows its last message; the full output is in `cast-chrome.log` in the profile folder (`dir` in `cast_list`).
-- **"Profile is already open":** one profile, one Chrome. Close the other window (a login window or another Claude session).
-- **SSO blocks the login:** log in only in the `/cast:add` or `/cast:login` window; it is a plain Chrome nothing controls.
-- **Claude says the login window is still open:** close it (the window titled `… · log in · cast`), then tell Claude. On macOS, closing a cast window quits that Chrome within a second; a minimized window counts as open.
+- **"Profile is already open":** one profile, one Chrome. Close the other window (yours from `/cast:add` or `/cast:open`, or another Claude session).
+- **SSO blocks the login:** log in only in the `/cast:add` or `/cast:open` window; it is a plain Chrome nothing controls.
+- **Claude says your window is still open:** close it (titled `… · your window · cast`), then tell Claude. On macOS, closing a cast window quits that Chrome within a second; a minimized window counts as open.
 - **Profiles missing:** local profiles belong to one project folder; use `--scope user` for profiles you need everywhere.
 
 ## Similar tools

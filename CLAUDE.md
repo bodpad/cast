@@ -8,8 +8,8 @@ Developers test apps where several people interact (Sam sends a chat message, El
 
 Core ideas:
 - **A profile is a person, not a site.** One Chrome profile holds all of that person's logins (app, SSO, mail).
-- **A human logs in, Claude never does.** `/cast:add` and `/cast:login` open a plain Chrome for the human; when a session expires Claude asks for `/cast:login <name>`.
-- **Two modes of one profile:** the login window (plain Chrome, no control port, so SSO bot checks pass) and Claude's window (the same Chrome with a DevTools port, Playwright MCP attached).
+- **A human logs in, Claude never does.** `/cast:add` and `/cast:open` open a plain Chrome for the human; when a session expires Claude asks for `/cast:open <name>`.
+- **Two modes of one profile:** the user window (plain Chrome, no control port, so SSO bot checks pass) and Claude's window (the same Chrome with a DevTools port, Playwright MCP attached).
 - **Claude knows who is who:** a `SessionStart` hook lists profiles (name, email, role, sites) in every session.
 - Scopes like Claude's own: `local` (this project), `project` (team slot in `.claude/cast.yaml`, no credentials), `user` (all projects).
 
@@ -35,7 +35,7 @@ Status: Linux, macOS and Windows (Windows tested in CI only). Installed as `/plu
 
 The reasons are in "Why it is built this way" in `CONTRIBUTING.md`.
 
-- The login window (`/cast:add`, `/cast:login`) must have no DevTools port: a port makes SSO bot checks refuse the login.
+- The user window (`/cast:add`, `/cast:open`) must have no DevTools port: a port makes SSO bot checks refuse the login.
 - Stop Chrome through `Chrome.close()` (`SIGINT`; on Windows CDP `Browser.close` or `taskkill` without `/F`), never `SIGTERM` or a forced kill: they lose cookies and history not flushed yet.
 - Closing a profile: stop Chrome first, then disconnect Playwright, or the saved session loses its tabs.
 - After Playwright attaches, wait for the tab list to settle before selecting a tab (session restore races).

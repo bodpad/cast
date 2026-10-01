@@ -3,7 +3,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 /**
- * On macOS closing Chrome's last window leaves Chrome running, so a login window the human closed
+ * On macOS closing Chrome's last window leaves Chrome running, so a user window the human closed
  * would look open forever and History would not be flushed. A small watcher, started detached next to
  * each visible cast Chrome, quits that Chrome with SIGINT once its windows are gone, as on Linux.
  */

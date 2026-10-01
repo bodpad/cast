@@ -211,7 +211,7 @@ describe('window look', () => {
     addProfile(sb.paths, 'Sam', 'local', { description: 'sends messages' });
     const p = findProfile(sb.paths, 'Sam')!;
     assert.deepEqual(windowLook(p), { title: 'Sam (sends messages) · cast', color: PROFILE_COLORS[0] });
-    assert.equal(windowLook(p, 'log in').title, 'Sam (sends messages) · log in · cast');
+    assert.equal(windowLook(p, 'your window').title, 'Sam (sends messages) · your window · cast');
     assert.equal(windowLook({ ...p, description: 'x'.repeat(60) }).title, `Sam (${'x'.repeat(39)}…) · cast`);
   });
 

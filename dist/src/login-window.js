@@ -30,7 +30,7 @@ export async function startLoginWindow(dir, opts) {
         look: opts.look,
         browser: opts.browser,
         detached: true,
-        // Tests play the human over a DevTools port; real login windows never get one.
+        // Tests play the human over a DevTools port; real user windows never get one.
         debugPort: test && !!opts.onReady,
         urls: [pathToFileURL(instructions).href, ...(opts.sites ?? []).map(siteUrl)],
     });
@@ -44,7 +44,7 @@ export async function startLoginWindow(dir, opts) {
     }
     return { startedAt, chrome };
 }
-/** Opens the login window and waits until the human closes it (or the timeout closes it). */
+/** Opens the user window and waits until the human closes it (or the timeout closes it). */
 export async function openLoginWindow(dir, opts) {
     const { startedAt, chrome } = await startLoginWindow(dir, opts);
     let timer;

@@ -14,12 +14,12 @@ import {
   type Profile, RegistryError, addProfile, editProfile, ensureColor, findProfile, loadProfiles, removeProfile, requireReady, slotDescription, updateProfile,
 } from './registry.js';
 
-const HUMAN_ONLY = 'Call ONLY when the user explicitly asked for it (/cast:add, /cast:login): a human must log in in the window. Never call it on your own because a session expired.';
+const HUMAN_ONLY = 'Call ONLY when the user explicitly asked for it (/cast:add, /cast:open): the window is for a human (to log in, add sites or work by hand). Never call it on your own because a session expired.';
 
 const CAST_TOOLS: Tool[] = [
   {
     name: 'cast_list',
-    description: 'List cast browser profiles (one per person): name, scope, email, description, known sites, whether it is set up on this machine (ready), currently open, and the Chrome profile folder (dir). Never start Chrome on that folder by hand: use /cast:login, which launches it with the right flags.',
+    description: 'List cast browser profiles (one per person): name, scope, email, description, known sites, whether it is set up on this machine (ready), currently open, and the Chrome profile folder (dir). Never start Chrome on that folder by hand: use /cast:open, which launches it with the right flags.',
     annotations: { title: 'List profiles', readOnlyHint: true, openWorldHint: false },
     inputSchema: { type: 'object', properties: {} },
   },
@@ -41,8 +41,8 @@ const CAST_TOOLS: Tool[] = [
   },
   {
     name: 'cast_add',
-    description: `Create a profile and open a clean Chrome for the human to log in. Returns at once; when the user says they are done, call cast_login_result. ${HUMAN_ONLY}`,
-    annotations: { title: 'Add a profile and open a login window', readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+    description: `Create a profile and open a clean Chrome for the human to log in. Returns at once; when the user says they are done, call cast_user_window_result. ${HUMAN_ONLY}`,
+    annotations: { title: 'Add a profile and open it for login', readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     inputSchema: {
       type: 'object',
       properties: {
@@ -55,15 +55,15 @@ const CAST_TOOLS: Tool[] = [
     },
   },
   {
-    name: 'cast_login',
-    description: `Reopen an existing profile for the human to log in again or add sites. Returns at once; when the user says they are done, call cast_login_result. ${HUMAN_ONLY}`,
-    annotations: { title: 'Open a login window', readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
+    name: 'cast_open_for_user',
+    description: `Open an existing profile's Chrome for the human, without Claude's control: to log in again, add sites or work by hand. Returns at once; when the user says they are done, call cast_user_window_result. ${HUMAN_ONLY}`,
+    annotations: { title: 'Open a profile for the user', readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true },
     inputSchema: { type: 'object', properties: { name: PROFILE_PARAM }, required: ['name'] },
   },
   {
-    name: 'cast_login_result',
-    description: 'After /cast:add or /cast:login: whether the login window is closed yet and, if so, the sites saved from it and the last page the user saw on each.',
-    annotations: { title: 'Get the login result', readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    name: 'cast_user_window_result',
+    description: 'After /cast:add or /cast:open: whether the user window is closed yet and, if so, the sites saved from it and the last page the user saw on each.',
+    annotations: { title: 'Get what the user window saved', readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     inputSchema: { type: 'object', properties: { name: PROFILE_PARAM }, required: ['name'] },
   },
   {
@@ -106,7 +106,7 @@ export function createServer(paths: CastPaths, gateway: Gateway): Server {
   server.setRequestHandler(CallToolRequestSchema, async req => {
     const { name, arguments: args = {} } = req.params;
     try {
-      // Login windows may have been closed while nobody waited on them, even in an earlier session.
+      // User windows may have been closed while nobody waited on them, even in an earlier session.
       await finishClosedLogins(paths);
       if (name.startsWith('cast_')) return await castTool(paths, gateway, name, args);
       const { profile, ...rest } = args;
@@ -167,16 +167,16 @@ async function castTool(paths: CastPaths, gateway: Gateway, tool: string, args: 
       }
       return ok(loginOpened(p));
     }
-    case 'cast_login': {
+    case 'cast_open_for_user': {
       const p = ensureColor(paths, str(args, 'name'));
       await loginWindow(paths, gateway, p);
       return ok(loginOpened(p));
     }
-    case 'cast_login_result': {
+    case 'cast_user_window_result': {
       const name = requireReady(paths, str(args, 'name')).name;
       const p = await finishLogin(paths, name);
-      if (!p) return ok(`The login window for "${name}" is still open. Ask the user to close it when they are done logging in, then call cast_login_result again.`);
-      if (!p.lastLoginAt || !p.loginStartedAt) return ok(`No login window was opened for "${p.name}". The user can run /cast:login ${p.name}.`);
+      if (!p) return ok(`The user window for "${name}" is still open. Ask the user to close it when they are done, then call cast_user_window_result again.`);
+      if (!p.lastLoginAt || !p.loginStartedAt) return ok(`No user window was opened for "${p.name}". The user can run /cast:open ${p.name}.`);
       return ok(loginReport(p, await lastLogin(p)));
     }
     case 'cast_set_sites': {
@@ -218,7 +218,7 @@ async function castTool(paths: CastPaths, gateway: Gateway, tool: string, args: 
 function usable(paths: CastPaths, name: string): Profile {
   const p = ensureColor(paths, name);
   if (loginPending(p)) {
-    throw new RegistryError(`The login window for "${p.name}" is still open. Ask the user to finish logging in and close it, then try again.`);
+    throw new RegistryError(`The user window for "${p.name}" is still open. Ask the user to finish and close it, then try again.`);
   }
   return p;
 }
@@ -228,7 +228,7 @@ async function loginWindow(paths: CastPaths, gateway: Gateway, p: Profile): Prom
   // The Chrome profile can be used by one browser at a time.
   await gateway.close(p.name);
   const browser = profileBrowser(paths, p);
-  const { startedAt, chrome } = await startLoginWindow(p.dir, { name: p.name, sites: p.sites, look: windowLook(p, 'log in'), browser });
+  const { startedAt, chrome } = await startLoginWindow(p.dir, { name: p.name, sites: p.sites, look: windowLook(p, 'your window'), browser });
   updateProfile(paths, p.name, { loginStartedAt: startedAt.toISOString() });
   // Save the sites as soon as the window closes, if this session is still running then.
   chrome.exited.then(() => finishLogin(paths, p.name)).catch(() => {});
@@ -236,16 +236,16 @@ async function loginWindow(paths: CastPaths, gateway: Gateway, p: Profile): Prom
 
 function loginOpened(p: Profile): string {
   return [
-    `The login window for "${p.name}" is open. This call does not wait for it.`,
+    `The user window for "${p.name}" is open. This call does not wait for it.`,
     'Tell the user: log in everywhere this person needs, choose "Stay signed in" on MFA prompts, close the window when done and say so here. '
       + 'They may also leave this Claude Code session: cast saves the visited sites when the window closes.',
-    `When the user says they are done, call cast_login_result {name: "${p.name}"}.`,
+    `When the user says they are done, call cast_user_window_result {name: "${p.name}"}.`,
   ].join('\n');
 }
 
 function loginReport(p: Profile, r: LoginResult): string {
   const lines = [
-    `The login window for "${p.name}" is closed. cast saved the sites the user landed on.`,
+    `The user window for "${p.name}" is closed. cast saved the sites the user landed on.`,
     `Sites from this login: ${r.sites.join(', ') || '(none)'}`,
     `Saved sites now: ${p.sites.join(', ') || '(none)'}`,
     `Sign-in pages and redirects (left out; Claude never logs in itself): ${r.signIn.join(', ') || '(none)'}`,

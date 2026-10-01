@@ -13,7 +13,7 @@ async function main(argv: string[]): Promise<number> {
   let profiles;
   try {
     const paths = resolvePaths();
-    // A login window closed after its Claude session ended: save its sites now.
+    // A user window closed after its Claude session ended: save its sites now.
     await finishClosedLogins(paths);
     profiles = loadProfiles(paths);
   } catch (e) {

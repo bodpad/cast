@@ -17,7 +17,7 @@ export interface LoginWindow {
 export interface LoginWindowOptions {
   /** Profile name shown on the instruction page. */
   name: string;
-  /** Sites the profile already knows; opened as extra tabs for /cast:login. */
+  /** Sites the profile already knows; opened as extra tabs for /cast:open. */
   sites?: string[];
   look?: WindowLook;
   browser?: Browser;
@@ -75,7 +75,7 @@ export async function startLoginWindow(dir: string, opts: LoginWindowOptions): P
     look: opts.look,
     browser: opts.browser,
     detached: true,
-    // Tests play the human over a DevTools port; real login windows never get one.
+    // Tests play the human over a DevTools port; real user windows never get one.
     debugPort: test && !!opts.onReady,
     urls: [pathToFileURL(instructions).href, ...(opts.sites ?? []).map(siteUrl)],
   });
@@ -88,7 +88,7 @@ export async function startLoginWindow(dir: string, opts: LoginWindowOptions): P
   return { startedAt, chrome };
 }
 
-/** Opens the login window and waits until the human closes it (or the timeout closes it). */
+/** Opens the user window and waits until the human closes it (or the timeout closes it). */
 export async function openLoginWindow(dir: string, opts: LoginWindowOptions): Promise<LoginResult & { timedOut: boolean }> {
   const { startedAt, chrome } = await startLoginWindow(dir, opts);
   let timer: NodeJS.Timeout | undefined;
