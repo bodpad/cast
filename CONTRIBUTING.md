@@ -25,6 +25,7 @@ Chrome and Playwright MCP quirks found the hard way (Linux, Chrome 151 and macOS
 - **Window colors.** Before Chrome starts, cast writes a theme color to `Default/Preferences`: `browser.theme.user_color2` with `color_variant2: 3` (vibrant; other variants shift the hue or fade in dark mode), `extensions.theme.system_theme: 0` (a fresh Linux profile follows GTK, which ignores the color) and `browser.custom_chrome_frame: false` (the system title bar shows `--window-name`; Chrome's own frame shows no title). `--restore-last-session` is passed only when `Default/Sessions` exists: on a new profile it opens a window that ignores `--window-name`. A restored window ignores `--window-name` too and keeps the title saved in the session (Chrome's "Name window…"), so before a restore cast appends a `SetWindowUserTitle` command (SNSS id 31) for every window to `Default/Sessions/Session_*`; Chrome rewrites those files on each run. Pages see none of it.
 - **`--password-store=basic` everywhere,** so the login window and Claude's window read the same cookies. macOS and Windows ignore it (Keychain, DPAPI per user), and all windows of one browser still share the key.
 - **`--disable-blink-features=AutomationControlled`** in Claude's window, the same default as Playwright MCP, with `--test-type`, which hides Chrome's "unsupported command-line flag" bar. The login window has no port and needs neither. Nothing else is masked (see SECURITY.md).
+- **All Playwright tools, `browser_run_code_unsafe` included.** cast is not a bot: the user hands Claude their own browser instead of clicking themselves, so Claude gets the same tools Playwright MCP gives. Only `browser_close` (replaced by `cast_close`) and `browser_install` are hidden. SECURITY.md says what that allows.
 - **Snapshots go to files.** Action tools return `[Snapshot](page-….yml)` relative to the child's cwd; the gateway runs the child with `cwd` = its output dir and makes the links absolute. Tool schemas are taken from the child, not hardcoded (`browser_click` takes `target`, not `ref`).
 - **Pass `process.env` to the Playwright child.** `StdioClientTransport` strips the environment; without `DISPLAY` Chrome silently starts headless.
 - **Explained start failures.** Before starting Chrome, cast checks the platform and `DISPLAY`/`WAYLAND_DISPLAY`. Chrome's stdout and stderr go to `cast-chrome.log` in the profile folder; when Chrome exits during startup, the error names the cause (display, busy profile) or quotes its last line.
@@ -43,7 +44,6 @@ Chrome and Playwright MCP quirks found the hard way (Linux, Chrome 151 and macOS
 - Flatpak browsers (see above).
 - A lock for one profile used by two Claude sessions (today Chrome refuses a busy folder and cast shows a hint).
 - Detecting logged-in or expired state per site, `/cast:check`, a clean profile for sign-up tests.
-- Whether to hide `browser_run_code_unsafe` (it can read cookies).
 - Optional headless, TOTP, recording, publishing to npm and the Anthropic directory.
 
 ## Develop
