@@ -26,6 +26,13 @@ jobs:
       - name: Chrome
         run: '"$(node -e "import(\"./dist/src/chrome.js\").then(m => console.log(m.chromeExecutable()))")" --version'
       - run: node --test --test-concurrency=1 dist/test/*.test.js
+      - name: One version everywhere, with a CHANGELOG.md entry
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          v=$(node -p 'require("./package.json").version')
+          test "$(node -p 'require("./package-lock.json").version')" = "$v" || { echo "::error::package-lock.json is not $v: run npm install"; exit 1; }
+          test "$(node -p 'require("./.claude-plugin/plugin.json").version')" = "$v" || { echo "::error::.claude-plugin/plugin.json is not $v"; exit 1; }
+          node .github/scripts/release-notes.mjs "$v" > /dev/null
       - name: Plugin manifests
         if: matrix.os == 'ubuntu-latest'
         run: npx -y @anthropic-ai/claude-code plugin validate --strict .
