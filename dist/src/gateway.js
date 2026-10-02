@@ -87,6 +87,14 @@ export class Gateway {
         this.children.delete(key);
         const wasOpen = !child.exited;
         child.exited ??= 'closed by cast';
+        // An open dialog keeps Chrome from closing on Windows (Browser.close does not finish, and the forced
+        // stop loses the session and recent cookies): cancel it first. "No dialog" errors are ignored.
+        if (wasOpen) {
+            await Promise.race([
+                child.client.callTool({ name: 'browser_handle_dialog', arguments: { accept: false } }).catch(() => { }),
+                new Promise(r => setTimeout(r, 3000)),
+            ]);
+        }
         // Chrome first: on disconnect Playwright closes the tabs it opened, and the saved session would be empty.
         await child.chrome.close();
         await child.client.close().catch(() => { });
