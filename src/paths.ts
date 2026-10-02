@@ -13,7 +13,7 @@ export interface CastPaths {
   dataDir: string;
   /** Profiles of a snap browser live in <snapDir>/<snap>/common/claude-cast: a snap cannot read hidden folders in home. */
   snapDir: string;
-  /** Keeps snap profiles of different Claude accounts apart ("" when CAST_DATA_DIR is set). */
+  /** Keeps snap profiles of different Claude Code accounts apart ("" when CAST_DATA_DIR is set). */
   snapAccount: string;
 }
 
@@ -34,11 +34,12 @@ export function resolvePaths(env: NodeJS.ProcessEnv = process.env): CastPaths {
   return { projectDir, projectId: projectIdFor(projectDir), configDir, dataDir, snapDir, snapAccount };
 }
 
-/** "<Claude config folder>-<8 hex of the plugin data path>", e.g. "claude-cast-1a2b3c4d" for ~/.claude-cast. */
+/**
+ * The Claude Code config folder's name without the dot: "claude" for ~/.claude, "claude-work" for ~/.claude-work.
+ * Readable, so people can find the folder, and the same for every install source.
+ */
 export function accountIdFor(pluginData: string): string {
-  const hash = createHash('sha256').update(resolve(pluginData)).digest('hex').slice(0, 8);
-  const name = basename(resolve(pluginData, '..', '..', '..')).replace(/^\.+/, '').replace(/[^A-Za-z0-9_-]/g, '_') || 'claude';
-  return `${name}-${hash}`;
+  return basename(resolve(pluginData, '..', '..', '..')).replace(/^\.+/, '').replace(/[^A-Za-z0-9_-]/g, '_') || 'claude';
 }
 
 /** Readable and stable: "<folder>-<8 hex of the real path>". */
