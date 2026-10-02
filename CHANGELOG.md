@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.12.2 — 2026-10-02
+
+### Changed
+- `/cast:add` takes the description before the optional email: `/cast:add <name> <description> [email]`. An email is still recognized in any position after the name.
+- The MCP server is declared in `.claude-plugin/plugin.json`, not in a root `.mcp.json`. In a clone of the cast repository Claude Code read that file as the project's own server, which failed to start next to the plugin's.
+
+### Fixed
+- README: standard command syntax with a legend, the profile name rule, data paths and site examples.
+
 ## 0.12.1 — 2026-10-01
 
 ### Fixed
