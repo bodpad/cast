@@ -11,11 +11,17 @@ cast gives you several visible Chrome windows, one per person, each already logg
 - Do not guess a role from a profile name, email or sites: `alex-qa` does not tell you whether this is a vendor or an admin.
 - If the task names a role or a person and no profile's description matches, or several do, ask the user once which profile it is. Then save their answer in that profile's description with `cast_update`, so nobody has to ask again. Save only what the user said, never your guess.
 - To change a profile's email or description later, the user can run `/cast:edit <name>`.
-- Open profiles without asking: `cast_open {profile, url?}`, or just call any `browser_*` tool with `profile` — the profile opens automatically.
+- Open profiles without asking: `cast_open {profile}`, or just call any `browser_*` tool with `profile` — the profile opens automatically. Do not pass `url` to `cast_open`: it loads into the current tab, one of the person's (see Tabs).
 - Every `browser_*` tool takes a required `profile`. Calls for different profiles go to different browsers and can be interleaved freely.
-- Each window is the person's regular Chrome: it reopens the tabs from last time. Check `browser_tabs {profile, action: "list"}` and select or open the tab you need instead of assuming a blank page.
 - The user can use the window too. If they close it, the next `browser_*` call opens it again.
 - A profile marked not ready is a team slot not set up on this machine: ask the user to run `/cast:add <name>`.
+
+## Tabs: never overwrite the person's tabs
+Each window is the person's regular Chrome: it reopens their tabs from last time, and the current tab is one of them. `browser_navigate` loads the URL into the current tab and replaces what was there.
+1. Before the first action in a profile, call `browser_tabs {profile, action: "list"}`.
+2. If a tab already shows the site you need, `select` it and work there. Do not reload it unless the task needs a fresh page.
+3. Otherwise open a new tab: `browser_tabs {profile, action: "new", url}`.
+4. Use `browser_navigate` only in a tab you opened or selected for this task.
 
 ## Reading pages
 - Action tools (`browser_navigate`, `browser_click`, `browser_type`…) return a link `[Snapshot](/abs/path.yml)` instead of the page. Call `browser_snapshot {profile}` to get the page with element refs, or read that file.
