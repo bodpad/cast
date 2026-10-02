@@ -205,7 +205,7 @@ describe('gateway', () => {
 
   test('a window closed by the human is reopened on the next call', async () => {
     await gateway.call(gp('Elon'), 'browser_navigate', { url: site.url });
-    quitChrome(findProfile(sb.paths, 'Elon')!.dir);
+    await quitChrome(findProfile(sb.paths, 'Elon')!.dir);
     for (let i = 0; i < 100 && gateway.isOpen('Elon'); i++) await new Promise(r => setTimeout(r, 100));
     assert.equal(gateway.isOpen('Elon'), false);
     await gateway.call(gp('Elon'), 'browser_navigate', { url: site.url });
@@ -309,7 +309,7 @@ describe('cast MCP server', () => {
     assert.match(text(busy), /user window for "Ann" is still open/);
 
     // The human closes the window.
-    quitChrome(dir);
+    await quitChrome(dir);
     await until(() => !isRunning(dir));
     const result = await client.callTool({ name: 'cast_user_window_result', arguments: { name: 'Ann' } });
     assert.match(text(result), /user window for "Ann" is closed/);
