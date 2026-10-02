@@ -2,6 +2,10 @@ import { browserName } from './browsers.js';
 import type { WindowLook } from './chrome.js';
 import type { Profile } from './registry.js';
 
+/** Each window restores the person's tabs, so Claude must not load a site over the current one. */
+const TABS_RULE = 'Each window reopens the person\'s own tabs. To open a site there, select a tab that already shows it or open a new tab '
+  + '(browser_tabs "new" with url); browser_navigate replaces the current tab, which is theirs.';
+
 /** Compact block for the SessionStart hook; a hint on how to add people when there are none. */
 export function briefList(profiles: Profile[]): string {
   if (!profiles.length) return 'cast: no browser users yet. When a task needs a logged-in browser, ask the user to add each person with /cast:add <name>.';
@@ -17,7 +21,7 @@ export function briefList(profiles: Profile[]): string {
     if (p.browser && p.browser !== 'chrome') line += ` Browser: ${browserName(p.browser)}.`;
     return line;
   });
-  return ['cast: browser users available (open with cast_open / browser_* tools with profile=<name>):', ...lines].join('\n');
+  return ['cast: browser users available (open with cast_open / browser_* tools with profile=<name>):', ...lines, TABS_RULE].join('\n');
 }
 
 /** "Sam (vendor, Acme org) · your window · cast": the window title people see in the title bar and taskbar. */
