@@ -7,6 +7,9 @@
 - Existing profiles are not moved. To keep them, close all cast windows and move `~/.config/claude-cast/*` to `config/` and `~/.local/share/claude-cast/*` to `data/` in the new folder.
 - cast stops with an error when `CLAUDE_PLUGIN_DATA` is not set and `CAST_CONFIG_DIR`/`CAST_DATA_DIR` are not given, instead of choosing a folder itself.
 
+### Fixed
+- Claude no longer opens a site over a tab the person left open. A cast window restores the person's tabs, and `browser_navigate` replaced the current one: the `SessionStart` hook, the `cast` skill and `browser_navigate`'s description now tell Claude to select a tab that already shows the site or open a new one, and `cast_open` with a `url` opens it in a new tab.
+
 ## 0.12.2 — 2026-10-02
 
 ### Changed
