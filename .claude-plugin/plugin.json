@@ -7,5 +7,12 @@
   "homepage": "https://github.com/cosmotools/claude-cast",
   "repository": "https://github.com/cosmotools/claude-cast",
   "license": "MIT",
-  "keywords": ["browser", "playwright", "testing", "multi-user", "chrome"]
+  "keywords": ["browser", "playwright", "testing", "multi-user", "chrome"],
+  "mcpServers": {
+    "cast": {
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/dist/src/mcp.js"],
+      "env": { "CAST_PROJECT_DIR": "${CLAUDE_PROJECT_DIR}" }
+    }
+  }
 }

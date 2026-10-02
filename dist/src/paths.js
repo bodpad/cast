@@ -44,7 +44,7 @@ export function ensurePrivateDir(dir) {
     chmodSync(dir, 0o700);
     return dir;
 }
-/** Ignores a "${VAR}" placeholder that the host left unexpanded in .mcp.json. */
+/** Ignores a "${VAR}" placeholder that the host left unexpanded in the MCP server config. */
 function expanded(value) {
     return value && !value.includes('${') ? value : undefined;
 }

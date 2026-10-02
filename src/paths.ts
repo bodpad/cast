@@ -65,7 +65,7 @@ export function ensurePrivateDir(dir: string): string {
   return dir;
 }
 
-/** Ignores a "${VAR}" placeholder that the host left unexpanded in .mcp.json. */
+/** Ignores a "${VAR}" placeholder that the host left unexpanded in the MCP server config. */
 function expanded(value: string | undefined): string | undefined {
   return value && !value.includes('${') ? value : undefined;
 }

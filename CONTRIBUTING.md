@@ -36,7 +36,7 @@ Chrome and Playwright MCP quirks found the hard way (Linux, Chrome 151 and macOS
 - **A profile keeps its browser** (`browser` in the profile list): on macOS each browser encrypts cookies with its own keychain item, and an older browser refuses a profile a newer one wrote. Profiles from before 0.8.0 have no `browser` and were made with Google Chrome; it is recorded on first use. `CAST_CHROME` overrides the choice and is not recorded.
 - **Snap.** A snap cannot read hidden folders in home, so a snap browser's profiles live in `~/snap/<snap>/common/claude-cast/` (gone with `snap remove`). `/snap/bin/<name>` links to `/usr/bin/snap`, and Ubuntu's `/usr/bin/chromium-browser` is a script that runs `/snap/bin/chromium`; both are recognized. Native installs of any browser come before snaps.
 - **No Flatpak.** `flatpak run` starts the browser in its own PID namespace (the `SingletonLock` pid is not ours, signals reach `bwrap`) and without access to `~/.local/share`. cast names a Flatpak browser in the error and asks for a native one.
-- **Install.** A marketplace install runs `npm ci --ignore-scripts`; `--plugin-dir` does not, so run `npm install` yourself. `dist/src` is committed because there is no build step.
+- **Install.** A marketplace install runs `npm ci --ignore-scripts`; `--plugin-dir` does not, so run `npm install` yourself. `dist/src` is committed because there is no build step. The MCP server is declared in `.claude-plugin/plugin.json`, not in a root `.mcp.json`: Claude Code also reads a root `.mcp.json` as the project's own servers, and in a clone of this repository that `cast` fails (`${CLAUDE_PLUGIN_ROOT}` is set only for plugins).
 
 ## Not done yet
 
