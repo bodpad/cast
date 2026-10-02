@@ -2,14 +2,28 @@ import { createHash } from 'node:crypto';
 import { chmodSync, mkdirSync, realpathSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { basename, join, resolve } from 'node:path';
+/**
+ * Everything lives in the plugin's data folder (`~/.claude/plugins/data/cast-<marketplace>/`), so profiles
+ * belong to one Claude account and `/plugin uninstall` deletes them. CAST_CONFIG_DIR and CAST_DATA_DIR override it.
+ */
 export function resolvePaths(env = process.env) {
     const projectDir = realpathOrSelf(resolve(expanded(env.CAST_PROJECT_DIR) || expanded(env.CLAUDE_PROJECT_DIR) || process.cwd()));
-    // Windows: settings roam with the user (AppData\Roaming); browser data stays on this machine (AppData\Local).
-    const windows = process.platform === 'win32';
-    const configDir = env.CAST_CONFIG_DIR || join(windows ? env.APPDATA || join(homedir(), 'AppData', 'Roaming') : env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'claude-cast');
-    const dataDir = env.CAST_DATA_DIR || join(windows ? env.LOCALAPPDATA || join(homedir(), 'AppData', 'Local') : env.XDG_DATA_HOME || join(homedir(), '.local', 'share'), 'claude-cast');
+    const pluginData = expanded(env.CLAUDE_PLUGIN_DATA);
+    const configDir = env.CAST_CONFIG_DIR || (pluginData && join(pluginData, 'config'));
+    const dataDir = env.CAST_DATA_DIR || (pluginData && join(pluginData, 'data'));
+    if (!configDir || !dataDir) {
+        throw new Error('CLAUDE_PLUGIN_DATA is not set: run cast as a Claude Code plugin, or set CAST_CONFIG_DIR and CAST_DATA_DIR');
+    }
     const snapDir = env.CAST_DATA_DIR ? join(env.CAST_DATA_DIR, 'snap') : join(homedir(), 'snap');
-    return { projectDir, projectId: projectIdFor(projectDir), configDir, dataDir, snapDir };
+    const snapAccount = env.CAST_DATA_DIR || !pluginData ? '' : accountIdFor(pluginData);
+    return { projectDir, projectId: projectIdFor(projectDir), configDir, dataDir, snapDir, snapAccount };
+}
+/**
+ * The Claude Code config folder's name without the dot: "claude" for ~/.claude, "claude-work" for ~/.claude-work.
+ * Readable, so people can find the folder, and the same for every install source.
+ */
+export function accountIdFor(pluginData) {
+    return basename(resolve(pluginData, '..', '..', '..')).replace(/^\.+/, '').replace(/[^A-Za-z0-9_-]/g, '_') || 'claude';
 }
 /** Readable and stable: "<folder>-<8 hex of the real path>". */
 export function projectIdFor(projectDir) {
@@ -30,7 +44,9 @@ export function listFile(paths, scope) {
  */
 export function profileDir(paths, scope, name, browser) {
     const key = name.toLowerCase();
-    const root = browser?.startsWith('snap:') ? join(paths.snapDir, browser.slice(5), 'common', 'claude-cast') : paths.dataDir;
+    const root = browser?.startsWith('snap:')
+        ? join(paths.snapDir, browser.slice(5), 'common', 'claude-cast', paths.snapAccount)
+        : paths.dataDir;
     return scope === 'user'
         ? join(root, 'user', key)
         : join(root, 'projects', paths.projectId, key);

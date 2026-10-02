@@ -24,7 +24,19 @@ export function sandbox(): Sandbox {
     CAST_CONFIG_DIR: join(root, 'config'),
     CAST_DATA_DIR: join(root, 'data'),
   };
-  return { root, env, paths: resolvePaths(env), cleanup: () => rmSync(root, { recursive: true, force: true }) };
+  return { root, env, paths: resolvePaths(env), cleanup: () => removeSandbox(root) };
+}
+
+/**
+ * A leftover temp folder is not a test failure: if a Chrome still writes to it (ENOTEMPTY on macOS)
+ * after the retries, warn and leave it.
+ */
+function removeSandbox(root: string): void {
+  try {
+    rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 });
+  } catch (e) {
+    console.warn(`could not remove ${root}: ${(e as Error).message}`);
+  }
 }
 
 export interface TestSite {
@@ -47,6 +59,12 @@ export async function startSite(): Promise<TestSite> {
       // An SSO-like redirect through another host.
       res.writeHead(302, { Location: url.searchParams.get('to') ?? '/' });
       res.end();
+      return;
+    }
+    if (url.pathname === '/alert') {
+      // A page that opens a dialog as it loads, so evaluating in it waits for the dialog.
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end('<title>alert</title><script>alert("hi")</script>');
       return;
     }
     if (url.pathname === '/probe') {
@@ -92,10 +110,29 @@ export function text(result: object): string {
  * Chrome has no window to close (taskkill without /F may still report success), so it is stopped by
  * force (its History may be lost).
  */
-export function quitChrome(dir: string): void {
+export async function quitChrome(dir: string): Promise<void> {
+  const pid = signalChrome(dir);
+  // Chrome removes SingletonLock early in its shutdown and keeps writing to the profile until it exits.
+  for (const end = Date.now() + 30_000; alive(pid); ) {
+    if (Date.now() > end) throw new Error(`Chrome ${pid} on ${dir} did not exit`);
+    await new Promise(r => setTimeout(r, 100));
+  }
+}
+
+function alive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (e) {
+    return (e as NodeJS.ErrnoException).code === 'EPERM';
+  }
+}
+
+function signalChrome(dir: string): number {
   if (process.platform !== 'win32') {
-    process.kill(Number(readlinkSync(join(dir, 'SingletonLock')).split('-').pop()), 'SIGINT');
-    return;
+    const pid = Number(readlinkSync(join(dir, 'SingletonLock')).split('-').pop());
+    process.kill(pid, 'SIGINT');
+    return pid;
   }
   // The browser process: started from the browser's executable on this folder, not a renderer (--type=…).
   // Matching the command line alone would also find this PowerShell query.
@@ -105,4 +142,5 @@ export function quitChrome(dir: string): void {
   if (!pid) throw new Error(`no Chrome runs on ${dir}`);
   const headless = process.env.CAST_TEST_HEADLESS === '1';
   if (headless || spawnSync('taskkill', ['/PID', pid]).status !== 0) spawnSync('taskkill', ['/F', '/T', '/PID', pid]);
+  return Number(pid);
 }

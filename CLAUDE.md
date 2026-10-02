@@ -12,6 +12,7 @@ Core ideas:
 - **Two modes of one profile:** the user window (plain Chrome, no control port, so SSO bot checks pass) and Claude's window (the same Chrome with a DevTools port, Playwright MCP attached).
 - **Claude knows who is who:** a `SessionStart` hook lists profiles (name, email, role, sites) in every session.
 - Scopes like Claude's own: `local` (this project), `project` (team slot in `.claude/claude-cast.yaml`, no credentials), `user` (all projects).
+- **Uninstall removes everything except snap profiles.** All cast files live in `${CLAUDE_PLUGIN_DATA}`, which `/plugin uninstall` deletes, so profiles belong to one Claude Code account. A snap browser's profiles must stay in `~/snap/`.
 
 Status: Linux, macOS and Windows (Windows tested in CI only). Installed as `/plugin marketplace add cosmotools/claude-cast`, `/plugin install cast@cosmotools`. Planned work is under "Not done yet" in `CONTRIBUTING.md`.
 
@@ -40,3 +41,4 @@ The reasons are in "Why it is built this way" in `CONTRIBUTING.md`.
 - Closing a profile: stop Chrome first, then disconnect Playwright, or the saved session loses its tabs.
 - After Playwright attaches, wait for the tab list to settle before selecting a tab (session restore races).
 - Keep `--password-store=basic` on every Chrome cast starts, so all windows read the same cookies.
+- Write cast files only under `resolvePaths()` (`${CLAUDE_PLUGIN_DATA}`, or the snap folder for a snap browser): anything elsewhere survives uninstall.

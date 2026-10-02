@@ -146,6 +146,7 @@ describe('gateway', () => {
     assert.ok(names.includes('browser_navigate'));
     assert.ok(names.includes('browser_handle_dialog'));
     assert.ok(!names.includes('browser_close'));
+    assert.match(tools.find(t => t.name === 'browser_navigate')?.description ?? '', /replaces it\. .*browser_tabs "new"/);
     for (const t of tools) {
       assert.equal(t.inputSchema.required?.[0], 'profile');
       assert.ok(t.inputSchema.properties?.profile);
@@ -202,9 +203,44 @@ describe('gateway', () => {
     assert.match(text(tabs), /\?tab=kept/);
   });
 
+  test('the tab in front comes back in front, whatever number Playwright gives it', async () => {
+    await gateway.call(gp('Sam'), 'browser_tabs', { action: 'new', url: `${site.url}/?tab=front` });
+    await gateway.call(gp('Sam'), 'browser_tabs', { action: 'new', url: `${site.url}/?tab=last` });
+    for (let i = 0; i < 2; i++) {
+      const list = text(await gateway.call(gp('Sam'), 'browser_tabs', { action: 'list' }));
+      const index = Number(/^- (\d+):.*\?tab=front\)$/m.exec(list)?.[1]);
+      await gateway.call(gp('Sam'), 'browser_tabs', { action: 'select', index });
+      await gateway.close('Sam');
+      const tabs = text(await gateway.call(gp('Sam'), 'browser_tabs', { action: 'list' }));
+      assert.match(tabs, /\(current\) .*\?tab=front\)$/m, tabs);
+    }
+  });
+
+  test('a restored tab showing a dialog does not keep the profile from opening', async () => {
+    // As a person would: close the dialog, then the window. (Closing Chrome with the dialog open fails
+    // on Windows and loses the session.) The page shows the dialog again when it is restored.
+    const opened = await gateway.call(gp('Sam'), 'browser_tabs', { action: 'new', url: `${site.url}/alert` });
+    assert.match(text(opened), /alert/i);
+    await gateway.call(gp('Sam'), 'browser_handle_dialog', { accept: true });
+    await gateway.close('Sam');
+    const started = Date.now();
+    const tabs = text(await gateway.call(gp('Sam'), 'browser_tabs', { action: 'list' }));
+    assert.ok(Date.now() - started < 15_000, `opened in ${Date.now() - started} ms`);
+    // The dialog is closed, so the page answers (the reload may still be loading it).
+    const index = Number(/^- (\d+):.*\/alert\)$/m.exec(tabs)?.[1]);
+    await gateway.call(gp('Sam'), 'browser_tabs', { action: 'select', index });
+    let page = '';
+    for (let i = 0; i < 50 && !page.includes('alert|'); i++) {
+      if (i) await new Promise(r => setTimeout(r, 200));
+      page = text(await gateway.call(gp('Sam'), 'browser_evaluate', { function: '() => document.title + "|" + location.href' }));
+    }
+    assert.match(page, /alert\|http/, `${tabs}\n${page}`);
+    await gateway.call(gp('Sam'), 'browser_tabs', { action: 'close', index });
+  });
+
   test('a window closed by the human is reopened on the next call', async () => {
     await gateway.call(gp('Elon'), 'browser_navigate', { url: site.url });
-    quitChrome(findProfile(sb.paths, 'Elon')!.dir);
+    await quitChrome(findProfile(sb.paths, 'Elon')!.dir);
     for (let i = 0; i < 100 && gateway.isOpen('Elon'); i++) await new Promise(r => setTimeout(r, 100));
     assert.equal(gateway.isOpen('Elon'), false);
     await gateway.call(gp('Elon'), 'browser_navigate', { url: site.url });
@@ -267,6 +303,10 @@ describe('cast MCP server', () => {
     assert.match(text(nav), /Profile "Elon" is open/);
     const snap = await client.callTool({ name: 'browser_snapshot', arguments: { profile: 'elon' } });
     assert.match(text(snap), /Hello elon/);
+    await client.callTool({ name: 'cast_open', arguments: { profile: 'elon', url: `${site.url}/inbox` } });
+    const tabs = text(await client.callTool({ name: 'browser_tabs', arguments: { profile: 'elon', action: 'list' } }));
+    assert.match(tabs, new RegExp(`\\(${site.url}/\\)`), 'the earlier tab is kept');
+    assert.match(tabs, new RegExp(`\\(current\\) .*\\(${site.url}/inbox\\)`), 'the URL opens in a new current tab');
 
     const sites = await client.callTool({ name: 'cast_set_sites', arguments: { name: 'Elon', sites: [`${site.url}/inbox`, 'outlook.office.com'] } });
     assert.ok(!sites.isError, text(sites));
@@ -281,6 +321,16 @@ describe('cast MCP server', () => {
 
     const closed = await client.callTool({ name: 'cast_close', arguments: { profile: 'Elon' } });
     assert.match(text(closed), /Closed/);
+  });
+
+  test("cast_open opens its url in a new profile's empty tab, not next to it", async () => {
+    addProfile(sb.paths, 'Bea', 'local', {});
+    await client.callTool({ name: 'cast_open', arguments: { profile: 'Bea', url: `${site.url}/inbox` } });
+    const tabs = text(await client.callTool({ name: 'browser_tabs', arguments: { profile: 'Bea', action: 'list' } }));
+    const lines = tabs.split('\n').filter(l => /^- \d+:/.test(l));
+    assert.equal(lines.length, 1, tabs);
+    assert.ok(lines[0].startsWith('- 0: (current) ') && lines[0].endsWith(`(${site.url}/inbox)`), tabs);
+    await client.callTool({ name: 'cast_close', arguments: { profile: 'Bea' } });
   });
 
   test('cast_add requires a description', async () => {
@@ -304,7 +354,7 @@ describe('cast MCP server', () => {
     assert.match(text(busy), /user window for "Ann" is still open/);
 
     // The human closes the window.
-    quitChrome(dir);
+    await quitChrome(dir);
     await until(() => !isRunning(dir));
     const result = await client.callTool({ name: 'cast_user_window_result', arguments: { name: 'Ann' } });
     assert.match(text(result), /user window for "Ann" is closed/);

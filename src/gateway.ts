@@ -5,6 +5,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import type { CallToolResult, Tool } from '@modelcontextprotocol/sdk/types.js';
 import type { Browser } from './browsers.js';
 import { type Chrome, type WindowLook, launchChrome } from './chrome.js';
+import { DialogGuard } from './dialogs.js';
 import { INSTRUCTIONS_FILE } from './login-window.js';
 import { ensurePrivateDir } from './paths.js';
 import { VERSION } from './version.js';
@@ -89,12 +90,16 @@ export class Gateway {
       child.exited ??= 'the Chrome window was closed';
       client.close().catch(() => {});
     });
+    // A restored tab showing a dialog would keep Playwright from attaching.
+    const dialogs = await DialogGuard.start(chrome.endpoint!);
     try {
       await client.connect(transport);
       await settleTabs(client);
     } catch (e) {
       await chrome.close();
       throw e;
+    } finally {
+      dialogs.stop();
     }
     this.children.set(profile.name.toLowerCase(), child);
     return child;
@@ -149,10 +154,16 @@ export class Gateway {
   }
 }
 
+/** Index of the one visible page, the tab in front of the window, or -1. Pages come in the order of browser_tabs. */
+const VISIBLE_TAB = 'async (page) => { const states = await Promise.all(page.context().pages()'
+  + '.map(p => p.evaluate(() => document.visibilityState).catch(() => ""))); '
+  + 'return states.filter(s => s === "visible").length === 1 ? states.indexOf("visible") : -1; }';
+
 /**
  * Waits until Chrome has finished restoring the session (the tab list stops changing), closes the
- * login instruction tab, and brings Playwright's current tab to the front: Chrome activates the
- * last-used tab while restoring, and actions in a background tab hang.
+ * login instruction tab, and makes the tab Chrome restored in front Playwright's current tab, so the
+ * person finds the tab they left. Playwright numbers restored tabs in the order they attached, not
+ * as in the window, and its current tab may be in the background, where actions hang.
  */
 async function settleTabs(client: Client): Promise<void> {
   const list = async () => resultText(await client.callTool({ name: 'browser_tabs', arguments: { action: 'list' } }) as CallToolResult);
@@ -171,7 +182,9 @@ async function settleTabs(client: Client): Promise<void> {
     await client.callTool({ name: 'browser_tabs', arguments: { action: 'close', index } });
     previous = await list();
   }
-  await client.callTool({ name: 'browser_tabs', arguments: { action: 'select', index: 0 } });
+  const visible = await client.callTool({ name: 'browser_run_code_unsafe', arguments: { code: VISIBLE_TAB } }) as CallToolResult;
+  const index = Number(/### Result\n(-?\d+)/.exec(resultText(visible))?.[1] ?? -1);
+  await client.callTool({ name: 'browser_tabs', arguments: { action: 'select', index: Math.max(index, 0) } });
 }
 
 function resultText(result: CallToolResult): string {
@@ -184,11 +197,17 @@ function spawnChild(extraArgs: string[], cwd?: string): StdioClientTransport {
   return new StdioClientTransport({ command: process.execPath, args, env: { ...process.env } as Record<string, string>, cwd, stderr: 'ignore' });
 }
 
+/** The current tab is usually one the person left open: Chrome restores their tabs. */
+const NAVIGATE_NOTE = ' In cast the current tab is usually one of the person\'s own tabs, and this replaces it. '
+  + 'To open a site, select a tab that already shows it (browser_tabs "select") or open a new one (browser_tabs "new" with url); '
+  + 'navigate only in a tab you opened or selected for this task.';
+
 function withProfileParam(tool: Tool): Tool {
   const schema = tool.inputSchema;
   const required = (schema.required ?? []).filter(r => r !== 'profile');
   return {
     ...tool,
+    ...(tool.name === 'browser_navigate' ? { description: (tool.description ?? '') + NAVIGATE_NOTE } : {}),
     inputSchema: {
       ...schema,
       properties: { profile: PROFILE_PARAM, ...(schema.properties ?? {}) },
