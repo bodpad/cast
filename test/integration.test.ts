@@ -146,6 +146,7 @@ describe('gateway', () => {
     assert.ok(names.includes('browser_navigate'));
     assert.ok(names.includes('browser_handle_dialog'));
     assert.ok(!names.includes('browser_close'));
+    assert.match(tools.find(t => t.name === 'browser_navigate')?.description ?? '', /replaces it\. .*browser_tabs "new"/);
     for (const t of tools) {
       assert.equal(t.inputSchema.required?.[0], 'profile');
       assert.ok(t.inputSchema.properties?.profile);

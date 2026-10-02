@@ -156,11 +156,16 @@ function spawnChild(extraArgs, cwd) {
     // The SDK's default env is reduced; pass everything through (DISPLAY, proxies…).
     return new StdioClientTransport({ command: process.execPath, args, env: { ...process.env }, cwd, stderr: 'ignore' });
 }
+/** The current tab is usually one the person left open: Chrome restores their tabs. */
+const NAVIGATE_NOTE = ' In cast the current tab is usually one of the person\'s own tabs, and this replaces it. '
+    + 'To open a site, select a tab that already shows it (browser_tabs "select") or open a new one (browser_tabs "new" with url); '
+    + 'navigate only in a tab you opened or selected for this task.';
 function withProfileParam(tool) {
     const schema = tool.inputSchema;
     const required = (schema.required ?? []).filter(r => r !== 'profile');
     return {
         ...tool,
+        ...(tool.name === 'browser_navigate' ? { description: (tool.description ?? '') + NAVIGATE_NOTE } : {}),
         inputSchema: {
             ...schema,
             properties: { profile: PROFILE_PARAM, ...(schema.properties ?? {}) },

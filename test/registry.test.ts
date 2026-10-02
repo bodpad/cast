@@ -346,7 +346,9 @@ describe('format', () => {
     assert.equal(
       briefList(loadProfiles(sb.paths)),
       'cast: browser users available (open with cast_open / browser_* tools with profile=<name>):\n'
-      + '- Sam (local) sam@email.com — sender. Sites: localhost:3000, outlook.office.com',
+      + '- Sam (local) sam@email.com — sender. Sites: localhost:3000, outlook.office.com\n'
+      + 'Each window reopens the person\'s own tabs. To open a site there, select a tab that already shows it or open a new tab '
+      + '(browser_tabs "new" with url); browser_navigate replaces the current tab, which is theirs.',
     );
     assert.match(briefList([]), /no browser users yet.*\/cast:add <name>/);
     addProfile(sb.paths, 'Ali', 'local', {});
