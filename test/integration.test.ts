@@ -222,11 +222,15 @@ describe('gateway', () => {
     const started = Date.now();
     const tabs = text(await gateway.call(gp('Sam'), 'browser_tabs', { action: 'list' }));
     assert.ok(Date.now() - started < 15_000, `opened in ${Date.now() - started} ms`);
-    // The dialog is closed, so the page answers.
+    // The dialog is closed, so the page answers (the reload may still be loading it).
     const index = Number(/^- (\d+):.*\/alert\)$/m.exec(tabs)?.[1]);
     await gateway.call(gp('Sam'), 'browser_tabs', { action: 'select', index });
-    const title = await gateway.call(gp('Sam'), 'browser_evaluate', { function: '() => document.title' });
-    assert.match(text(title), /"alert"/, text(title));
+    let page = '';
+    for (let i = 0; i < 50 && !page.includes('alert|'); i++) {
+      if (i) await new Promise(r => setTimeout(r, 200));
+      page = text(await gateway.call(gp('Sam'), 'browser_evaluate', { function: '() => document.title + "|" + location.href' }));
+    }
+    assert.match(page, /alert\|http/, `${tabs}\n${page}`);
     await gateway.call(gp('Sam'), 'browser_tabs', { action: 'close', index });
   });
 
