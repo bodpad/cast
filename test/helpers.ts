@@ -61,6 +61,12 @@ export async function startSite(): Promise<TestSite> {
       res.end();
       return;
     }
+    if (url.pathname === '/alert') {
+      // A page that opens a dialog as it loads, so evaluating in it waits for the dialog.
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      res.end('<title>alert</title><script>alert("hi")</script>');
+      return;
+    }
     if (url.pathname === '/probe') {
       res.writeHead(200, { 'Content-Type': 'text/html' });
       res.end('<script>fetch("/report?webdriver=" + navigator.webdriver)</script>');

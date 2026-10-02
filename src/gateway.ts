@@ -5,6 +5,7 @@ import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import type { CallToolResult, Tool } from '@modelcontextprotocol/sdk/types.js';
 import type { Browser } from './browsers.js';
 import { type Chrome, type WindowLook, launchChrome } from './chrome.js';
+import { DialogGuard } from './dialogs.js';
 import { INSTRUCTIONS_FILE } from './login-window.js';
 import { ensurePrivateDir } from './paths.js';
 import { VERSION } from './version.js';
@@ -89,12 +90,16 @@ export class Gateway {
       child.exited ??= 'the Chrome window was closed';
       client.close().catch(() => {});
     });
+    // A restored tab showing a dialog would keep Playwright from attaching.
+    const dialogs = await DialogGuard.start(chrome.endpoint!);
     try {
       await client.connect(transport);
       await settleTabs(client);
     } catch (e) {
       await chrome.close();
       throw e;
+    } finally {
+      dialogs.stop();
     }
     this.children.set(profile.name.toLowerCase(), child);
     return child;
