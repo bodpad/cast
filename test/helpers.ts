@@ -24,7 +24,8 @@ export function sandbox(): Sandbox {
     CAST_CONFIG_DIR: join(root, 'config'),
     CAST_DATA_DIR: join(root, 'data'),
   };
-  return { root, env, paths: resolvePaths(env), cleanup: () => rmSync(root, { recursive: true, force: true }) };
+  // Retries: a Chrome that just quit may still be writing to its profile (ENOTEMPTY on macOS).
+  return { root, env, paths: resolvePaths(env), cleanup: () => rmSync(root, { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }) };
 }
 
 export interface TestSite {
