@@ -36,8 +36,8 @@ describe('paths', () => {
     const p = resolvePaths({ CLAUDE_PLUGIN_DATA: data });
     assert.equal(p.configDir, join(data, 'config'));
     assert.equal(p.dataDir, join(data, 'data'));
-    assert.match(p.snapAccount, /^claude-cast-[0-9a-f]{8}$/);
-    assert.notEqual(accountIdFor(join('/home', 'me', '.claude', 'plugins', 'data', 'cast-cosmotools')), p.snapAccount);
+    assert.equal(p.snapAccount, 'claude-cast');
+    assert.equal(accountIdFor(join('/home', 'me', '.claude', 'plugins', 'data', 'cast-claude-plugins-official')), 'claude');
   });
 
   test('CAST_CONFIG_DIR and CAST_DATA_DIR override the plugin data folder', () => {

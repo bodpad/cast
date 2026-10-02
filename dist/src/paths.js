@@ -18,11 +18,12 @@ export function resolvePaths(env = process.env) {
     const snapAccount = env.CAST_DATA_DIR || !pluginData ? '' : accountIdFor(pluginData);
     return { projectDir, projectId: projectIdFor(projectDir), configDir, dataDir, snapDir, snapAccount };
 }
-/** "<Claude config folder>-<8 hex of the plugin data path>", e.g. "claude-cast-1a2b3c4d" for ~/.claude-cast. */
+/**
+ * The Claude Code config folder's name without the dot: "claude" for ~/.claude, "claude-work" for ~/.claude-work.
+ * Readable, so people can find the folder, and the same for every install source.
+ */
 export function accountIdFor(pluginData) {
-    const hash = createHash('sha256').update(resolve(pluginData)).digest('hex').slice(0, 8);
-    const name = basename(resolve(pluginData, '..', '..', '..')).replace(/^\.+/, '').replace(/[^A-Za-z0-9_-]/g, '_') || 'claude';
-    return `${name}-${hash}`;
+    return basename(resolve(pluginData, '..', '..', '..')).replace(/^\.+/, '').replace(/[^A-Za-z0-9_-]/g, '_') || 'claude';
 }
 /** Readable and stable: "<folder>-<8 hex of the real path>". */
 export function projectIdFor(projectDir) {

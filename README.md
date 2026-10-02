@@ -38,7 +38,7 @@ In a Claude Code session, fetch the latest marketplace listing, update the plugi
 
 From a terminal instead: `claude plugin marketplace update cosmotools`, then `claude plugin update cast@cosmotools`, then restart `claude`.
 
-Profiles and logins are kept. What changed in each version: [CHANGELOG.md](CHANGELOG.md).
+Profiles and logins are kept, except once when updating from a version before 0.13.0: profiles moved to a new folder, and [CHANGELOG.md](CHANGELOG.md) (0.13.0) says how to move yours. What changed in each version: [CHANGELOG.md](CHANGELOG.md).
 
 ## Get started
 
@@ -102,9 +102,9 @@ Everything is in the plugin's data folder, which Claude Code gives each plugin: 
 
 - Profile lists: `config/` in that folder (plain YAML, editable).
 - Chrome data with logins: `data/` in that folder, readable only by you.
-- A snap browser (Ubuntu's Chromium) cannot read hidden folders, so its profiles are in `~/snap/<browser>/common/claude-cast/<account>/`.
+- A snap browser (Ubuntu's Chromium) cannot read hidden folders, so its profiles are in `~/snap/<browser>/common/claude-cast/<account>/`, where `<account>` is the Claude Code config folder's name without the dot (`claude` for `~/.claude`).
 
-The folder's name comes from the marketplace, so installing cast from another source starts with no profiles. To keep them, uninstall the old one with `--keep-data` and rename its folder to the new name before the first start.
+The folder's name comes from the marketplace, so installing cast from another source starts with no profiles. To keep them, uninstall the old one with `--keep-data` and rename its folder to the new name before the first start. A snap browser's profiles do not depend on the source.
 
 ## Uninstall
 
@@ -119,7 +119,7 @@ From a terminal instead: `claude plugin uninstall cast@cosmotools`, then `claude
 
 Uninstalling deletes all profiles and logins of this Claude Code account; to keep them, run `claude plugin uninstall --keep-data cast@cosmotools`.
 
-Profiles of a snap browser are outside that folder: `snap remove` of the browser deletes them, or remove them yourself (this deletes them for all Claude Code accounts; add `/<account>` for one):
+Profiles of a snap browser are outside that folder: `snap remove` of the browser deletes them, or remove them yourself (this deletes them for all Claude Code accounts; add `/claude` for `~/.claude` only, see [Where data lives](#where-data-lives)):
 
 ```bash
 rm -rf ~/snap/*/common/claude-cast
@@ -133,7 +133,7 @@ Team slots in a project's `.claude/claude-cast.yaml` stay in that repository; de
 - **"Profile is already open":** one profile, one Chrome. Close the other window (yours from `/cast:add` or `/cast:open`, or another Claude session).
 - **SSO blocks the login:** log in only in the `/cast:add` or `/cast:open` window; it is a plain Chrome nothing controls.
 - **Claude says your window is still open:** close it (titled `… · your window · cast`), then tell Claude. On macOS, closing a cast window quits that Chrome within a second; a minimized window counts as open.
-- **Profiles missing:** local profiles belong to one project folder; use `--scope user` for profiles you need everywhere. Profiles also belong to one Claude Code account (`CLAUDE_CONFIG_DIR`) and one install source (see [Where data lives](#where-data-lives)). Profiles made before 0.13.0 are in `~/.config/claude-cast/` and `~/.local/share/claude-cast/`; [CHANGELOG.md](CHANGELOG.md) says how to move them.
+- **Profiles missing:** local profiles belong to one project folder; use `--scope user` for profiles you need everywhere. Profiles also belong to one Claude Code account (`CLAUDE_CONFIG_DIR`) and one install source (see [Where data lives](#where-data-lives)). Profiles made before 0.13.0 stay in the old folders (`~/.config/claude-cast/`, `~/.local/share/claude-cast/`, on Windows `%APPDATA%` and `%LOCALAPPDATA%`); [CHANGELOG.md](CHANGELOG.md) (0.13.0) says how to move them.
 
 ## Similar tools
 

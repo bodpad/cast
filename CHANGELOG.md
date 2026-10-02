@@ -3,8 +3,13 @@
 ## 0.13.0 — 2026-10-02
 
 ### Changed
-- Profiles live in the plugin's data folder, `~/.claude/plugins/data/cast-<marketplace>/` (`config/` for the lists, `data/` for Chrome), instead of `~/.config/claude-cast/` and `~/.local/share/claude-cast/` (on Windows `%APPDATA%` and `%LOCALAPPDATA%`). `/plugin uninstall` now deletes them (`--keep-data` keeps them), and each Claude Code account (`CLAUDE_CONFIG_DIR`) has its own profiles. Profiles of a snap browser move to `~/snap/<browser>/common/claude-cast/<account>/`.
-- Existing profiles are not moved. To keep them, close all cast windows and move `~/.config/claude-cast/*` to `config/` and `~/.local/share/claude-cast/*` to `data/` in the new folder.
+- Profiles live in the plugin's data folder, `~/.claude/plugins/data/cast-<marketplace>/` (`config/` for the lists, `data/` for Chrome), instead of `~/.config/claude-cast/` and `~/.local/share/claude-cast/` (on Windows `%APPDATA%` and `%LOCALAPPDATA%`). `/plugin uninstall` now deletes them (`--keep-data` keeps them), and each Claude Code account (`CLAUDE_CONFIG_DIR`) has its own profiles. New profiles of a snap browser live in `~/snap/<browser>/common/claude-cast/<account>/`, where `<account>` is the Claude Code config folder's name without the dot (`claude` for `~/.claude`).
+- Existing profiles are not moved: after the update the list is empty until you move them. Close all cast windows, then move the contents of each old folder into the new one (`~/.claude/plugins/data/cast-<marketplace>/`, or under `CLAUDE_CONFIG_DIR`):
+  - profile lists: `~/.config/claude-cast/` (or `$XDG_CONFIG_HOME/claude-cast/`; Windows `%APPDATA%\claude-cast\`) → `config/`;
+  - Chrome data: `~/.local/share/claude-cast/` (or `$XDG_DATA_HOME/claude-cast/`; Windows `%LOCALAPPDATA%\claude-cast\`) → `data/`;
+  - a snap browser's profiles: `user/` and `projects/` in `~/snap/<browser>/common/claude-cast/` → into its `<account>/` folder.
+
+  With several Claude Code accounts, give each one only the profiles it uses.
 - cast stops with an error when `CLAUDE_PLUGIN_DATA` is not set and `CAST_CONFIG_DIR`/`CAST_DATA_DIR` are not given, instead of choosing a folder itself.
 
 ### Fixed
