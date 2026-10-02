@@ -2,8 +2,6 @@ name: Release
 
 # Publishes a GitHub release when main gets a version that has no tag yet.
 # The notes are that version's CHANGELOG.md section.
-# It also moves the release branch to that commit: the Claude directory follows
-# release, not main, so changes merged between releases do not go to its review.
 
 on:
   push:
@@ -31,6 +29,5 @@ jobs:
             echo "$TAG is already released"
             exit 0
           fi
-          git push origin "$GITHUB_SHA:refs/heads/release"
           node .github/scripts/release-notes.mjs "${TAG#v}" > notes.md
           gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" --notes-file notes.md

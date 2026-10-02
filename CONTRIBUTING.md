@@ -65,5 +65,6 @@ claude plugin validate --strict . # check the manifests
 ## Rules
 
 - Everything in the repository is in English.
+- Pull requests go into `develop`. `main` holds only releases, merged from `develop`: the Claude directory and `/plugin marketplace add` install the head of `main`, and an Anthropic reviewer checks every commit the directory picks up (the plugin installs dependencies from a lockfile).
 - `dist/src` is committed so the plugin needs no build step after install: run `npm run build` and commit `dist/` with source changes.
-- Releases: bump the version in `package.json` and `.claude-plugin/plugin.json`, run `npm install` (updates `package-lock.json`), add a `CHANGELOG.md` entry. Users get updates only when the version changes. CI checks that the versions match; after the merge to `main` a workflow tags the version, publishes a GitHub release with its `CHANGELOG.md` section and moves the `release` branch to that commit. The Claude directory follows `release`, not `main`: an Anthropic reviewer checks every version it picks up (the plugin installs dependencies from a lockfile), so only releases go to review.
+- Releases: bump the version in `package.json` and `.claude-plugin/plugin.json`, run `npm install` (updates `package-lock.json`), add a `CHANGELOG.md` entry. Users get updates only when the version changes. CI checks that the versions match; after the merge to `main` a workflow tags the version and publishes a GitHub release with its `CHANGELOG.md` section.
