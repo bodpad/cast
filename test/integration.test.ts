@@ -216,6 +216,20 @@ describe('gateway', () => {
     }
   });
 
+  test('a restored tab showing a dialog does not keep the profile from opening', async () => {
+    await gateway.call(gp('Sam'), 'browser_tabs', { action: 'new', url: `${site.url}/alert` }).catch(() => {});
+    await gateway.close('Sam');
+    const started = Date.now();
+    const tabs = text(await gateway.call(gp('Sam'), 'browser_tabs', { action: 'list' }));
+    assert.ok(Date.now() - started < 15_000, `opened in ${Date.now() - started} ms`);
+    // The dialog is closed, so the page answers.
+    const index = Number(/^- (\d+):.*\/alert\)$/m.exec(tabs)?.[1]);
+    await gateway.call(gp('Sam'), 'browser_tabs', { action: 'select', index });
+    const title = await gateway.call(gp('Sam'), 'browser_evaluate', { function: '() => document.title' });
+    assert.match(text(title), /"alert"/, text(title));
+    await gateway.call(gp('Sam'), 'browser_tabs', { action: 'close', index });
+  });
+
   test('a window closed by the human is reopened on the next call', async () => {
     await gateway.call(gp('Elon'), 'browser_navigate', { url: site.url });
     await quitChrome(findProfile(sb.paths, 'Elon')!.dir);
