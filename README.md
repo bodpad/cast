@@ -91,7 +91,7 @@ What Claude reads in a cast window goes to the model as part of your Claude sess
 | `--scope` | Profile visible | Use for |
 |---|---|---|
 | `local` (default) | to you, in this project | most cases |
-| `user` | to you, in all projects | an account you use everywhere |
+| `user` | to you, in all projects of this Claude Code account | an account you use everywhere |
 | `project` | to the team, as a slot in `.claude/claude-cast.yaml` | shared test scenarios |
 
 A project slot holds only a name and description, never logins. Commit `.claude/claude-cast.yaml`; each teammate fills the slot with their own account via `/cast:add <name>`. If names clash, local wins over project, project over user.
@@ -108,7 +108,7 @@ The folder's name comes from the marketplace, so installing cast from another so
 
 ## Uninstall
 
-In a Claude Code session:
+Close all cast windows, then in a Claude Code session:
 
 ```
 /plugin uninstall cast@cosmotools
@@ -117,9 +117,9 @@ In a Claude Code session:
 
 From a terminal instead: `claude plugin uninstall cast@cosmotools`, then `claude plugin marketplace remove cosmotools`.
 
-Close all cast windows first. Uninstalling deletes all profiles and logins of this Claude Code account; to keep them, run `claude plugin uninstall --keep-data cast@cosmotools`.
+Uninstalling deletes all profiles and logins of this Claude Code account; to keep them, run `claude plugin uninstall --keep-data cast@cosmotools`.
 
-Profiles of a snap browser are outside that folder: `snap remove` of the browser deletes them, or remove them yourself:
+Profiles of a snap browser are outside that folder: `snap remove` of the browser deletes them, or remove them yourself (this deletes them for all Claude Code accounts; add `/<account>` for one):
 
 ```bash
 rm -rf ~/snap/*/common/claude-cast
@@ -133,7 +133,7 @@ Team slots in a project's `.claude/claude-cast.yaml` stay in that repository; de
 - **"Profile is already open":** one profile, one Chrome. Close the other window (yours from `/cast:add` or `/cast:open`, or another Claude session).
 - **SSO blocks the login:** log in only in the `/cast:add` or `/cast:open` window; it is a plain Chrome nothing controls.
 - **Claude says your window is still open:** close it (titled `… · your window · cast`), then tell Claude. On macOS, closing a cast window quits that Chrome within a second; a minimized window counts as open.
-- **Profiles missing:** local profiles belong to one project folder; use `--scope user` for profiles you need everywhere.
+- **Profiles missing:** local profiles belong to one project folder; use `--scope user` for profiles you need everywhere. Profiles also belong to one Claude Code account (`CLAUDE_CONFIG_DIR`) and one install source (see [Where data lives](#where-data-lives)). Profiles made before 0.13.0 are in `~/.config/claude-cast/` and `~/.local/share/claude-cast/`; [CHANGELOG.md](CHANGELOG.md) says how to move them.
 
 ## Similar tools
 
