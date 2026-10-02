@@ -22,6 +22,8 @@ Start Claude Code (`claude`) and type these at its prompt. They are Claude Code 
 
 From a terminal instead: `claude plugin marketplace add cosmotools/claude-cast`, then `claude plugin install cast@cosmotools`, then start `claude`.
 
+Profiles belong to the install source and to the Claude Code account: another source or another `CLAUDE_CONFIG_DIR` starts with no profiles (see [Where data lives](#where-data-lives)).
+
 cast works in Claude Code on your computer: it starts browsers there. It does nothing in claude.ai chat, which cannot reach your computer.
 
 ## Update
@@ -96,8 +98,13 @@ A project slot holds only a name and description, never logins. Commit `.claude/
 
 ## Where data lives
 
-- Profile lists: `~/.config/claude-cast/` (plain YAML, editable); on Windows `%APPDATA%\claude-cast\`.
-- Chrome data with logins: `~/.local/share/claude-cast/`, readable only by you; on Windows `%LOCALAPPDATA%\claude-cast\`. A snap browser (Ubuntu's Chromium) cannot read hidden folders, so its profiles are in `~/snap/<browser>/common/claude-cast/`.
+Everything is in the plugin's data folder, which Claude Code gives each plugin: `~/.claude/plugins/data/cast-<marketplace>/` (`cast-cosmotools` for the install above), or the same path under `CLAUDE_CONFIG_DIR` if you set it. Each Claude Code account therefore has its own profiles.
+
+- Profile lists: `config/` in that folder (plain YAML, editable).
+- Chrome data with logins: `data/` in that folder, readable only by you.
+- A snap browser (Ubuntu's Chromium) cannot read hidden folders, so its profiles are in `~/snap/<browser>/common/claude-cast/<account>/`.
+
+The folder's name comes from the marketplace, so installing cast from another source starts with no profiles. To keep them, uninstall the old one with `--keep-data` and rename its folder to the new name before the first start.
 
 ## Uninstall
 
@@ -110,23 +117,19 @@ In a Claude Code session:
 
 From a terminal instead: `claude plugin uninstall cast@cosmotools`, then `claude plugin marketplace remove cosmotools`.
 
-Uninstalling keeps profiles and logins. To delete them too, close all cast windows and remove both folders:
+Close all cast windows first. Uninstalling deletes all profiles and logins of this Claude Code account; to keep them, run `claude plugin uninstall --keep-data cast@cosmotools`.
+
+Profiles of a snap browser are outside that folder: `snap remove` of the browser deletes them, or remove them yourself:
 
 ```bash
-rm -rf ~/.config/claude-cast ~/.local/share/claude-cast ~/snap/*/common/claude-cast
-```
-
-On Windows, in PowerShell:
-
-```powershell
-Remove-Item -Recurse -Force "$env:APPDATA\claude-cast", "$env:LOCALAPPDATA\claude-cast"
+rm -rf ~/snap/*/common/claude-cast
 ```
 
 Team slots in a project's `.claude/claude-cast.yaml` stay in that repository; delete the file there if nobody needs them.
 
 ## Troubleshooting
 
-- **No window / no browser found:** cast looks for Google Chrome, Edge, Brave, Chromium and Vivaldi in their usual places and in `PATH` (macOS: `/Applications` or `~/Applications`; Windows: `Program Files` or `AppData\Local`); set `CAST_CHROME` to the browser's executable if it lives elsewhere. A Flatpak browser cannot be used: its sandbox hides the profile folder and the process; install the .deb or .rpm package instead. Snap browsers work. On Linux, start Claude Code from a desktop session (`DISPLAY` set), not plain SSH. When Chrome exits right after starting, cast shows its last message; the full output is in `cast-chrome.log` in the profile folder: `~/.local/share/claude-cast/projects/<project>-<hash>/<name>/`, or `…/user/<name>/` for `--scope user` (Claude can tell you the exact path).
+- **No window / no browser found:** cast looks for Google Chrome, Edge, Brave, Chromium and Vivaldi in their usual places and in `PATH` (macOS: `/Applications` or `~/Applications`; Windows: `Program Files` or `AppData\Local`); set `CAST_CHROME` to the browser's executable if it lives elsewhere. A Flatpak browser cannot be used: its sandbox hides the profile folder and the process; install the .deb or .rpm package instead. Snap browsers work. On Linux, start Claude Code from a desktop session (`DISPLAY` set), not plain SSH. When Chrome exits right after starting, cast shows its last message; the full output is in `cast-chrome.log` in the profile folder: `~/.claude/plugins/data/cast-<marketplace>/data/projects/<project>-<hash>/<name>/`, or `…/data/user/<name>/` for `--scope user` (Claude can tell you the exact path).
 - **"Profile is already open":** one profile, one Chrome. Close the other window (yours from `/cast:add` or `/cast:open`, or another Claude session).
 - **SSO blocks the login:** log in only in the `/cast:add` or `/cast:open` window; it is a plain Chrome nothing controls.
 - **Claude says your window is still open:** close it (titled `… · your window · cast`), then tell Claude. On macOS, closing a cast window quits that Chrome within a second; a minimized window counts as open.

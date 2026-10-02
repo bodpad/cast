@@ -13,18 +13,32 @@ export interface CastPaths {
   dataDir: string;
   /** Profiles of a snap browser live in <snapDir>/<snap>/common/claude-cast: a snap cannot read hidden folders in home. */
   snapDir: string;
+  /** Keeps snap profiles of different Claude accounts apart ("" when CAST_DATA_DIR is set). */
+  snapAccount: string;
 }
 
+/**
+ * Everything lives in the plugin's data folder (`~/.claude/plugins/data/cast-<marketplace>/`), so profiles
+ * belong to one Claude account and `/plugin uninstall` deletes them. CAST_CONFIG_DIR and CAST_DATA_DIR override it.
+ */
 export function resolvePaths(env: NodeJS.ProcessEnv = process.env): CastPaths {
   const projectDir = realpathOrSelf(resolve(expanded(env.CAST_PROJECT_DIR) || expanded(env.CLAUDE_PROJECT_DIR) || process.cwd()));
-  // Windows: settings roam with the user (AppData\Roaming); browser data stays on this machine (AppData\Local).
-  const windows = process.platform === 'win32';
-  const configDir = env.CAST_CONFIG_DIR || join(
-    windows ? env.APPDATA || join(homedir(), 'AppData', 'Roaming') : env.XDG_CONFIG_HOME || join(homedir(), '.config'), 'claude-cast');
-  const dataDir = env.CAST_DATA_DIR || join(
-    windows ? env.LOCALAPPDATA || join(homedir(), 'AppData', 'Local') : env.XDG_DATA_HOME || join(homedir(), '.local', 'share'), 'claude-cast');
+  const pluginData = expanded(env.CLAUDE_PLUGIN_DATA);
+  const configDir = env.CAST_CONFIG_DIR || (pluginData && join(pluginData, 'config'));
+  const dataDir = env.CAST_DATA_DIR || (pluginData && join(pluginData, 'data'));
+  if (!configDir || !dataDir) {
+    throw new Error('CLAUDE_PLUGIN_DATA is not set: run cast as a Claude Code plugin, or set CAST_CONFIG_DIR and CAST_DATA_DIR');
+  }
   const snapDir = env.CAST_DATA_DIR ? join(env.CAST_DATA_DIR, 'snap') : join(homedir(), 'snap');
-  return { projectDir, projectId: projectIdFor(projectDir), configDir, dataDir, snapDir };
+  const snapAccount = env.CAST_DATA_DIR || !pluginData ? '' : accountIdFor(pluginData);
+  return { projectDir, projectId: projectIdFor(projectDir), configDir, dataDir, snapDir, snapAccount };
+}
+
+/** "<Claude config folder>-<8 hex of the plugin data path>", e.g. "claude-cast-1a2b3c4d" for ~/.claude-cast. */
+export function accountIdFor(pluginData: string): string {
+  const hash = createHash('sha256').update(resolve(pluginData)).digest('hex').slice(0, 8);
+  const name = basename(resolve(pluginData, '..', '..', '..')).replace(/^\.+/, '').replace(/[^A-Za-z0-9_-]/g, '_') || 'claude';
+  return `${name}-${hash}`;
 }
 
 /** Readable and stable: "<folder>-<8 hex of the real path>". */
@@ -48,7 +62,9 @@ export function listFile(paths: CastPaths, scope: Scope): string {
  */
 export function profileDir(paths: CastPaths, scope: Scope, name: string, browser?: string): string {
   const key = name.toLowerCase();
-  const root = browser?.startsWith('snap:') ? join(paths.snapDir, browser.slice(5), 'common', 'claude-cast') : paths.dataDir;
+  const root = browser?.startsWith('snap:')
+    ? join(paths.snapDir, browser.slice(5), 'common', 'claude-cast', paths.snapAccount)
+    : paths.dataDir;
   return scope === 'user'
     ? join(root, 'user', key)
     : join(root, 'projects', paths.projectId, key);
