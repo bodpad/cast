@@ -216,6 +216,16 @@ describe('gateway', () => {
     }
   });
 
+  test('closing a profile with a dialog open keeps its tabs', async () => {
+    const opened = await gateway.call(gp('Sam'), 'browser_tabs', { action: 'new', url: `${site.url}/alert` });
+    assert.match(text(opened), /alert/i);
+    await gateway.close('Sam');
+    const tabs = text(await gateway.call(gp('Sam'), 'browser_tabs', { action: 'list' }));
+    assert.match(tabs, /\/alert\)$/m, tabs);
+    const index = Number(/^- (\d+):.*\/alert\)$/m.exec(tabs)?.[1]);
+    await gateway.call(gp('Sam'), 'browser_tabs', { action: 'close', index });
+  });
+
   test('a restored tab showing a dialog does not keep the profile from opening', async () => {
     // As a person would: close the dialog, then the window. (Closing Chrome with the dialog open fails
     // on Windows and loses the session.) The page shows the dialog again when it is restored.

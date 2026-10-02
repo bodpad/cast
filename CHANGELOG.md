@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.1 — 2026-10-02
+
+### Fixed
+- Windows: closing a profile while a page shows a dialog (`alert`, `confirm`) no longer loses its tabs and recent cookies. The dialog kept Chrome from closing, and the forced stop that followed lost what Chrome had not saved yet. cast now cancels the dialog first.
+
 ## 0.13.0 — 2026-10-02
 
 ### Changed
