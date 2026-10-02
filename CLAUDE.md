@@ -27,8 +27,8 @@ Status: Linux, macOS and Windows (Windows tested in CI only). Installed as `/plu
 
 - Everything in the repository is in English.
 - After changing `src/`, rebuild and commit `dist/src` in the same commit: users run `dist/` without a build step.
-- All changes go through a pull request: branch from `main`, push the branch, open a PR. Never push to `main` directly.
-- Releasing: bump the version in `package.json` and `.claude-plugin/plugin.json`, run `npm install` (updates `package-lock.json`), add a `CHANGELOG.md` entry. Users get updates only when the version changes and the PR is merged to `main`; the GitHub release is then published by `.github/workflows/release.yml`, which also moves the `release` branch the Claude directory follows.
+- All changes go through a pull request into `develop`: branch from `develop`, push the branch, open a PR with base `develop`. Never push to `main` or `develop` directly. `main` holds only releases: the Claude directory and `/plugin marketplace add` install from it.
+- Releasing: bump the version in `package.json` and `.claude-plugin/plugin.json`, run `npm install` (updates `package-lock.json`), add a `CHANGELOG.md` entry. Then open a PR from `develop` into `main`. Users get updates only when the version changes and that PR is merged; the GitHub release is then published by `.github/workflows/release.yml`.
 - Never make cast type passwords, log in by itself, or print cookies or tokens.
 
 ## Easy to break
