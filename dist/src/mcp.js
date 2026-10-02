@@ -21,11 +21,11 @@ const CAST_TOOLS = [
     },
     {
         name: 'cast_open',
-        description: 'Open the visible Chrome of a profile, optionally navigating to a URL. browser_* tools also open the profile automatically.',
+        description: 'Open the visible Chrome of a profile, optionally with a URL in a new tab (the person\'s own tabs stay as they are). browser_* tools also open the profile automatically.',
         annotations: { title: 'Open a profile', readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: true },
         inputSchema: {
             type: 'object',
-            properties: { profile: PROFILE_PARAM, url: { type: 'string', description: 'URL to open' } },
+            properties: { profile: PROFILE_PARAM, url: { type: 'string', description: 'URL to open in a new tab' } },
             required: ['profile'],
         },
     },
@@ -126,10 +126,11 @@ async function castTool(paths, gateway, tool, args) {
         case 'cast_open': {
             const p = usable(paths, str(args, 'profile'));
             const gp = gatewayProfile(paths, p);
-            // Playwright MCP starts Chrome lazily, so make a call that shows the window.
+            // Playwright MCP starts Chrome lazily, so make a call that shows the window. A URL goes to a
+            // new tab: the current one is a tab the person left open, and navigating would replace it.
             const url = optStr(args, 'url');
             const result = url
-                ? await gateway.call(gp, 'browser_navigate', { url })
+                ? await gateway.call(gp, 'browser_tabs', { action: 'new', url })
                 : await gateway.call(gp, 'browser_tabs', { action: 'list' });
             return { ...result, content: [{ type: 'text', text: `Profile "${p.name}" is open.` }, ...result.content] };
         }
