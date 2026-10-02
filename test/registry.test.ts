@@ -8,7 +8,7 @@ import { briefList, windowLook } from '../src/format.js';
 import { normalizeSite, pageUrl } from '../src/login-window.js';
 import { type MacWindow, windowsClosed } from '../src/mac-windows.js';
 import { classifyHosts, isSignInHost } from '../src/sites.js';
-import { ensurePrivateDir, listFile, profileDir, projectIdFor, resolvePaths } from '../src/paths.js';
+import { accountIdFor, ensurePrivateDir, listFile, profileDir, projectIdFor, resolvePaths } from '../src/paths.js';
 import {
   PROFILE_COLORS, RegistryError, addProfile, editProfile, ensureColor, findProfile, loadProfiles, removeProfile, slotDescription, updateProfile, validateName,
 } from '../src/registry.js';
@@ -26,29 +26,39 @@ describe('paths', () => {
   });
 
   test('project dir: CAST_PROJECT_DIR, then CLAUDE_PROJECT_DIR, then cwd', () => {
-    assert.equal(resolvePaths({ CAST_PROJECT_DIR: '/x', CLAUDE_PROJECT_DIR: '/y' }).projectDir, resolve('/x'));
-    assert.equal(resolvePaths({ CLAUDE_PROJECT_DIR: '/y' }).projectDir, resolve('/y'));
-    assert.equal(resolvePaths({ CAST_PROJECT_DIR: '${CLAUDE_PROJECT_DIR}', CLAUDE_PROJECT_DIR: '/y' }).projectDir, resolve('/y'));
+    assert.equal(resolvePaths({ CLAUDE_PLUGIN_DATA: '/pd', CAST_PROJECT_DIR: '/x', CLAUDE_PROJECT_DIR: '/y' }).projectDir, resolve('/x'));
+    assert.equal(resolvePaths({ CLAUDE_PLUGIN_DATA: '/pd', CLAUDE_PROJECT_DIR: '/y' }).projectDir, resolve('/y'));
+    assert.equal(resolvePaths({ CLAUDE_PLUGIN_DATA: '/pd', CAST_PROJECT_DIR: '${CLAUDE_PROJECT_DIR}', CLAUDE_PROJECT_DIR: '/y' }).projectDir, resolve('/y'));
   });
 
-  test('XDG dirs are honoured', { skip: process.platform === 'win32' && 'not on Windows' }, () => {
-    const p = resolvePaths({ XDG_CONFIG_HOME: '/c', XDG_DATA_HOME: '/d' });
-    assert.equal(p.configDir, '/c/claude-cast');
-    assert.equal(p.dataDir, '/d/claude-cast');
+  test('config and data live in the plugin data folder', () => {
+    const data = join('/home', 'me', '.claude-cast', 'plugins', 'data', 'cast-cosmotools');
+    const p = resolvePaths({ CLAUDE_PLUGIN_DATA: data });
+    assert.equal(p.configDir, join(data, 'config'));
+    assert.equal(p.dataDir, join(data, 'data'));
+    assert.match(p.snapAccount, /^claude-cast-[0-9a-f]{8}$/);
+    assert.notEqual(accountIdFor(join('/home', 'me', '.claude', 'plugins', 'data', 'cast-cosmotools')), p.snapAccount);
   });
 
-  test('Windows: settings in AppData\\Roaming, browser data in AppData\\Local', { skip: process.platform !== 'win32' && 'Windows only' }, () => {
-    const p = resolvePaths({ APPDATA: 'C:\\Users\\me\\AppData\\Roaming', LOCALAPPDATA: 'C:\\Users\\me\\AppData\\Local' });
-    assert.equal(p.configDir, 'C:\\Users\\me\\AppData\\Roaming\\claude-cast');
-    assert.equal(p.dataDir, 'C:\\Users\\me\\AppData\\Local\\claude-cast');
+  test('CAST_CONFIG_DIR and CAST_DATA_DIR override the plugin data folder', () => {
+    const p = resolvePaths({ CLAUDE_PLUGIN_DATA: '/pd', CAST_CONFIG_DIR: '/c', CAST_DATA_DIR: '/d' });
+    assert.equal(p.configDir, '/c');
+    assert.equal(p.dataDir, '/d');
+    assert.equal(p.snapAccount, '');
   });
 
-  test('a snap browser keeps profiles in ~/snap/<snap>/common/claude-cast', () => {
-    const p = resolvePaths({ CAST_PROJECT_DIR: '/w/app' });
+  test('without CLAUDE_PLUGIN_DATA or CAST_* dirs cast refuses to guess', () => {
+    assert.throws(() => resolvePaths({}), /CLAUDE_PLUGIN_DATA is not set/);
+    assert.throws(() => resolvePaths({ CLAUDE_PLUGIN_DATA: '${CLAUDE_PLUGIN_DATA}' }), /CLAUDE_PLUGIN_DATA is not set/);
+    assert.throws(() => resolvePaths({ CAST_CONFIG_DIR: '/c' }), /CLAUDE_PLUGIN_DATA is not set/);
+  });
+
+  test('a snap browser keeps profiles in ~/snap/<snap>/common/claude-cast/<account>', () => {
+    const p = resolvePaths({ CAST_PROJECT_DIR: '/w/app', CLAUDE_PLUGIN_DATA: '/home/me/.claude/plugins/data/cast-x' });
     assert.equal(p.snapDir, join(homedir(), 'snap'));
-    assert.equal(profileDir(p, 'user', 'Sam', 'snap:chromium'), join(p.snapDir, 'chromium', 'common', 'claude-cast', 'user', 'sam'));
+    assert.equal(profileDir(p, 'user', 'Sam', 'snap:chromium'), join(p.snapDir, 'chromium', 'common', 'claude-cast', p.snapAccount, 'user', 'sam'));
     assert.equal(profileDir(p, 'local', 'Sam', 'brave'), join(p.dataDir, 'projects', p.projectId, 'sam'));
-    assert.equal(resolvePaths({ CAST_DATA_DIR: '/d' }).snapDir, join('/d', 'snap'));
+    assert.equal(resolvePaths({ CAST_CONFIG_DIR: '/c', CAST_DATA_DIR: '/d' }).snapDir, join('/d', 'snap'));
   });
 
   test('profile dirs are private (0700)', { skip: process.platform === 'win32' && 'no file modes on Windows' }, () => {

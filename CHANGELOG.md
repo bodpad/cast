@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.13.0 — 2026-10-02
+
+### Changed
+- Profiles live in the plugin's data folder, `~/.claude/plugins/data/cast-<marketplace>/` (`config/` for the lists, `data/` for Chrome), instead of `~/.config/claude-cast/` and `~/.local/share/claude-cast/` (on Windows `%APPDATA%` and `%LOCALAPPDATA%`). `/plugin uninstall` now deletes them (`--keep-data` keeps them), and each Claude Code account (`CLAUDE_CONFIG_DIR`) has its own profiles. Profiles of a snap browser move to `~/snap/<browser>/common/claude-cast/<account>/`.
+- Existing profiles are not moved. To keep them, close all cast windows and move `~/.config/claude-cast/*` to `config/` and `~/.local/share/claude-cast/*` to `data/` in the new folder.
+- cast stops with an error when `CLAUDE_PLUGIN_DATA` is not set and `CAST_CONFIG_DIR`/`CAST_DATA_DIR` are not given, instead of choosing a folder itself.
+
 ## 0.12.2 — 2026-10-02
 
 ### Changed
