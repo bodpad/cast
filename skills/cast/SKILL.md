@@ -11,7 +11,7 @@ cast gives you several visible Chrome windows, one per person, each already logg
 - Do not guess a role from a profile name, email or sites: `alex-qa` does not tell you whether this is a vendor or an admin.
 - If the task names a role or a person and no profile's description matches, or several do, ask the user once which profile it is. Then save their answer in that profile's description with `cast_update`, so nobody has to ask again. Save only what the user said, never your guess.
 - To change a profile's email or description later, the user can run `/cast:edit <name>`.
-- Open profiles without asking: `cast_open {profile, url?}` (a `url` opens in a new tab), or just call any `browser_*` tool with `profile` — the profile opens automatically.
+- Open profiles without asking: `cast_open {profile, url?}` (a `url` opens in a new tab, or in an empty one), or just call any `browser_*` tool with `profile` — the profile opens automatically.
 - Every `browser_*` tool takes a required `profile`. Calls for different profiles go to different browsers and can be interleaved freely.
 - The user can use the window too. If they close it, the next `browser_*` call opens it again.
 - A profile marked not ready is a team slot not set up on this machine: ask the user to run `/cast:add <name>`.

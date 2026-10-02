@@ -9,6 +9,8 @@
 
 ### Fixed
 - Claude no longer opens a site over a tab the person left open. A cast window restores the person's tabs, and `browser_navigate` replaced the current one: the `SessionStart` hook, the `cast` skill and `browser_navigate`'s description now tell Claude to select a tab that already shows the site or open a new one, and `cast_open` with a `url` opens it in a new tab.
+- `cast_open` with a `url` on a new profile opens it in the empty new tab, instead of leaving that tab next to it.
+- Reopening a profile brings back the tab the person had in front. cast selected the first tab in Playwright's list, whose order changes from run to run, so a random tab came to the front.
 
 ## 0.12.2 — 2026-10-02
 
