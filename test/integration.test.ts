@@ -268,6 +268,10 @@ describe('cast MCP server', () => {
     assert.match(text(nav), /Profile "Elon" is open/);
     const snap = await client.callTool({ name: 'browser_snapshot', arguments: { profile: 'elon' } });
     assert.match(text(snap), /Hello elon/);
+    await client.callTool({ name: 'cast_open', arguments: { profile: 'elon', url: `${site.url}/inbox` } });
+    const tabs = text(await client.callTool({ name: 'browser_tabs', arguments: { profile: 'elon', action: 'list' } }));
+    assert.match(tabs, new RegExp(`\\(${site.url}/\\)`), 'the earlier tab is kept');
+    assert.match(tabs, new RegExp(`\\(current\\) .*\\(${site.url}/inbox\\)`), 'the URL opens in a new current tab');
 
     const sites = await client.callTool({ name: 'cast_set_sites', arguments: { name: 'Elon', sites: [`${site.url}/inbox`, 'outlook.office.com'] } });
     assert.ok(!sites.isError, text(sites));
