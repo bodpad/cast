@@ -136,10 +136,12 @@ async function castTool(paths: CastPaths, gateway: Gateway, tool: string, args: 
       const gp = gatewayProfile(paths, p);
       // Playwright MCP starts Chrome lazily, so make a call that shows the window. A URL goes to a
       // new tab: the current one is a tab the person left open, and navigating would replace it.
+      // An empty new tab (a new profile's only tab) is used instead of opening another one next to it.
       const url = optStr(args, 'url');
-      const result = url
-        ? await gateway.call(gp, 'browser_tabs', { action: 'new', url })
-        : await gateway.call(gp, 'browser_tabs', { action: 'list' });
+      const tabs = await gateway.call(gp, 'browser_tabs', { action: 'list' });
+      let result = tabs;
+      if (url && blankCurrentTab(tabs)) result = await gateway.call(gp, 'browser_navigate', { url });
+      else if (url) result = await gateway.call(gp, 'browser_tabs', { action: 'new', url });
       return { ...result, content: [{ type: 'text', text: `Profile "${p.name}" is open.` }, ...result.content] };
     }
     case 'cast_close': {
@@ -300,6 +302,12 @@ function rawStr(args: Args, key: string): string | undefined {
 function optStr(args: Args, key: string): string | undefined {
   const v = args[key];
   return typeof v === 'string' && v.trim() ? v.trim() : undefined;
+}
+
+/** browser_tabs "list" shows the current tab as an empty new tab page or about:blank. */
+function blankCurrentTab(tabs: CallToolResult): boolean {
+  const text = tabs.content.map(c => (c.type === 'text' ? c.text : '')).join('\n');
+  return /^- \d+: \(current\) \[[^\]]*\]\((about:blank|(chrome|edge):\/\/(newtab|new-tab-page)\/?)\)$/m.test(text);
 }
 
 function ok(text: string): CallToolResult {

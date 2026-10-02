@@ -203,6 +203,19 @@ describe('gateway', () => {
     assert.match(text(tabs), /\?tab=kept/);
   });
 
+  test('the tab in front comes back in front, whatever number Playwright gives it', async () => {
+    await gateway.call(gp('Sam'), 'browser_tabs', { action: 'new', url: `${site.url}/?tab=front` });
+    await gateway.call(gp('Sam'), 'browser_tabs', { action: 'new', url: `${site.url}/?tab=last` });
+    for (let i = 0; i < 2; i++) {
+      const list = text(await gateway.call(gp('Sam'), 'browser_tabs', { action: 'list' }));
+      const index = Number(/^- (\d+):.*\?tab=front\)$/m.exec(list)?.[1]);
+      await gateway.call(gp('Sam'), 'browser_tabs', { action: 'select', index });
+      await gateway.close('Sam');
+      const tabs = text(await gateway.call(gp('Sam'), 'browser_tabs', { action: 'list' }));
+      assert.match(tabs, /\(current\) .*\?tab=front\)$/m, tabs);
+    }
+  });
+
   test('a window closed by the human is reopened on the next call', async () => {
     await gateway.call(gp('Elon'), 'browser_navigate', { url: site.url });
     await quitChrome(findProfile(sb.paths, 'Elon')!.dir);
@@ -286,6 +299,16 @@ describe('cast MCP server', () => {
 
     const closed = await client.callTool({ name: 'cast_close', arguments: { profile: 'Elon' } });
     assert.match(text(closed), /Closed/);
+  });
+
+  test("cast_open opens its url in a new profile's empty tab, not next to it", async () => {
+    addProfile(sb.paths, 'Bea', 'local', {});
+    await client.callTool({ name: 'cast_open', arguments: { profile: 'Bea', url: `${site.url}/inbox` } });
+    const tabs = text(await client.callTool({ name: 'browser_tabs', arguments: { profile: 'Bea', action: 'list' } }));
+    const lines = tabs.split('\n').filter(l => /^- \d+:/.test(l));
+    assert.equal(lines.length, 1, tabs);
+    assert.ok(lines[0].startsWith('- 0: (current) ') && lines[0].endsWith(`(${site.url}/inbox)`), tabs);
+    await client.callTool({ name: 'cast_close', arguments: { profile: 'Bea' } });
   });
 
   test('cast_add requires a description', async () => {
